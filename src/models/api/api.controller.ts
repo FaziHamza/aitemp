@@ -210,8 +210,8 @@ export class ApiController {
     return this.apiService.sampleScreen(modelType);
   }
   @Get('/auth/pageAuth/:screenId')
-  async checkUserScreen(@Param('screenId') screenId: string, @Headers('ApplicationId') appId: string, @Headers('userId') userId: string): Promise<ApiResponse<any>> {
-      return await this.apiService.checkUserScreen(screenId, appId, userId);
+  async checkUserScreen(@Param('screenId') screenId: string, @Headers('ApplicationId') appId: string, @Headers('userId') userId: string,@Headers('PolicyId') PolicyId: string): Promise<ApiResponse<any>> {
+      return await this.apiService.checkUserScreen(screenId, appId, userId,PolicyId);
   }
   @Get('/auth/pageAuth/testing/111')
   async testing(@Headers('ApplicationId') appId: string, @Headers('userId') userId: string): Promise<ApiResponse<any>> {
@@ -220,5 +220,9 @@ export class ApiController {
   @Get('/userpolicy/getUserPolicyMenu/:id')
   async getUserPolicyMenu(@Headers('ApplicationId') appId: string, @Headers('userId') userId: string, @Headers('PolicyId') PolicyId: string): Promise<ApiResponse<any>> {
       return this.apiService.getUserPolicyMenu(appId, PolicyId);
+  }
+  @Get('/getuserCommentsByApp/:modelType/:type/:screenId?')
+  async getuserCommentsByApp(@Param('modelType') modelType: string, @Param('screenId') screenId: string, @Param('type') type: string, @Headers('ApplicationId') appId: string): Promise<ApiResponse<any>> {
+      return this.apiService.getuserCommentsByApp(modelType, screenId, type, appId);
   }
 }

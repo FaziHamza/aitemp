@@ -55,7 +55,7 @@ export class ApiService {
                 cmd = `SELECT * FROM ${tablename} where id  = '${organizationId}' order by createddate desc;`;
                 break;
             case 'application':
-                cmd = `SELECT * FROM ${tablename}  order by createddate desc;`;
+                cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND organizationid = '${organizationId}'  order by createddate desc;`;
                 break;
             case 'controls':
                 cmd = `SELECT * FROM ${tablename} `;
@@ -80,7 +80,7 @@ export class ApiService {
                 break;
 
             case 'application':
-                cmd = `SELECT * FROM ${tablename} WHERE departmentid = '${id}' order by  createddate desc;`;
+                cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND departmentid = '${id}' AND organizationid = '${organizationId}' order by  createddate desc;`;
                 break;
 
             case 'screenbuilder':
@@ -341,7 +341,7 @@ export class ApiService {
         }
         if (onlytableName.toLowerCase() == 'builders' || onlytableName.toLowerCase() == 'buildersnew') {
 
-            const deleteData = await this.delete(tablename, bodyData.id, orgId, appId, userId);
+            const deleteData = await this.delete(tablename, id, orgId, appId, userId);
             const createData = await this.create(body, orgId, appId, userId);
             return createData;
 
@@ -418,25 +418,25 @@ export class ApiService {
                 case 'update':
                 case 'delete':
                     cmd = `SELECT * FROM ${getTableName}.cacheRule
-                           WHERE screenbuilderid = '${instance?.screenbuilderid}'
-                             AND applicationId = '${appId}'
+                           WHERE screenbuilderid = '${instance?.json ? instance?.json?.screenbuilderid : instance?.screenbuilderid}'
+                             AND applicationid = '${appId}'
                              AND name = '${type}'
-                             AND ruleid = '${instance?.id}'`;
+                             AND ruleid = '${instance?.json ? instance?.json?.id : instance?.id}'`;
 
                     const existingRecord = await this.crateDbService.executeQuery(cmd);
 
                     const updateCmd = `UPDATE ${getTableName}.cacheRule
-                                       SET screenbuilderid = '${instance?.screenbuilderid}',
+                                       SET screenbuilderid = '${instance?.json ? instance?.json?.screenbuilderid : instance?.screenbuilderid}',
                                            name = '${type}',
                                            data = '${JSON.stringify(instance)}',
                                            applicationId = '${appId}',
-                                           ruleid = '${instance?.id}'
-                                       WHERE ruleid = '${instance?.id}'`;
+                                           ruleid = '${instance?.json ? instance?.json?.id : instance?.id}'
+                                       WHERE ruleid = '${instance?.json ? instance?.json?.id : instance?.id}'`;
 
                     if (actionType === 'update') {
                         if (!existingRecord || existingRecord?.data?.length === 0) {
                             const insertCmd = `INSERT INTO ${getTableName}.cacheRule (id,screenbuilderid, name, data, applicationId, ruleid)
-                                               VALUES ('${id}','${instance.screenbuilderid}', '${type}', '${JSON.stringify(instance)}', '${appId}', '${instance.id}')`;
+                                               VALUES ('${id}','${instance?.json ? instance?.json?.screenbuilderid : instance?.screenbuilderid}', '${type}', '${JSON.stringify(instance)}', '${appId}', '${instance?.json ? instance?.json?.id : instance?.id}')`;
                             const insertedInstance = await this.crateDbService.executeQuery(insertCmd);
                         } else {
                             const result = await this.crateDbService.executeQuery(updateCmd);
@@ -1002,7 +1002,7 @@ export class ApiService {
                 const policyMenuResult = await this.crateDbService.executeQuery(policyMenuQuery);
                 const policyMenu = policyMenuResult.data?.length > 0 ? policyMenuResult.data : [];
 
-                const parsedMenuData : any = JSON.parse(JSON.stringify(menu.menudata?.json)); // Assuming it's the first element
+                const parsedMenuData: any = JSON.parse(JSON.stringify(menu.menudata?.json)); // Assuming it's the first element
                 let nonRelationalData: any = this.flattenArray(policyMenu[0]?.data?.json);
                 const matchingMenus = this.filterMenusWithPolicy(nonRelationalData, parsedMenuData);
                 objLayout['menu'].menudata = { json: matchingMenus };
@@ -1401,15 +1401,15 @@ export class ApiService {
     }
 
     filterMenusWithPolicy(policydata: any[], menudata: any[]) {
-        const policyDataMap = new Map(policydata.map(policy => [policy.menuid, policy]));
+        const policyDataMap = new Map(policydata.map(policy => [policy.menuId, policy]));
 
         const filterMenus = (menu) => {
             const policy = policyDataMap.get(menu.id);
 
             if (policy) {
                 // Assign hideExpression from policy to menu
-                if (policy.hideexpression) {
-                    menu.hideExpression = policy.hideexpression;
+                if (policy.hideExpression) {
+                    menu.hideExpression = policy.hideExpression;
                 } else {
                     menu.hideExpression = false;
                 }
@@ -1431,69 +1431,109 @@ export class ApiService {
         const currentTimestamp = new Date().toISOString();
         return { timestamp: currentTimestamp };
     }
-    async checkUserScreen(screenId: string, appId: string, userId: string): Promise<ApiResponse<any>> {
+    async checkUserScreen(screenId: string, appId: string, userId: string, PolicyId): Promise<ApiResponse<any>> {
         try {
-            // let isPremissionAllow = false;
-            console.log(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping WHERE screenid = '/pages/${screenId}' AND applicationid = '${appId}';`)
-            const res: any = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping WHERE screenid = '/pages/${screenId}' AND applicationid = '${appId}';`);
-            // const menu = await this.menuModel.findOne({ applicationId: appId }).exec();
-            // const userMapping = await this.userMappingModel.find({ userId });
-            // if (userMapping && menu) {
-            //     // Find menu mappings associated with the policies
-            //     const policyMenu = await this.policyMappingModel.find({
-            //         policyId: { $in: userMapping.map(p => p.policyId) },
-            //     });
-            //     // Parse menuData from the instance
-            //     const parsedMenuData = JSON.parse(menu.menuData); // Assuming it's the first element
-
-            //     // Extract menuId values from policyMenu
-            //     const policyMenuIds = policyMenu.map(p => p.menuId);
-            //     const matchPolicyMenus: any[] = [];
-
-            //     function searchMenus(menus: any[]) {
-            //         for (const menuItem of menus) {
-            //             if (policyMenuIds.includes(menuItem.id)) {
-            //                 matchPolicyMenus.push(menuItem);
-            //             }
-
-            //             // If the current menu has children, recursively search through them
-            //             if (menuItem.children && menuItem.children.length > 0) {
-            //                 searchMenus(menuItem.children);
-            //             }
-            //         }
-            //     }
-            //     searchMenus(parsedMenuData);
-
-            //     let findScreen = matchPolicyMenus.find(a => a.link == '/pages/' + screenId);
-            //     if (findScreen)
-            //         isPremissionAllow = true;
-            // }
+            const res: any = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping WHERE applicationid = '${appId}' AND policyid = '${PolicyId}';`);
+            let checkPage;
+            if (screenId.includes('pages')) {
+                checkPage = screenId;
+            } else {
+                checkPage = '/pages/' + screenId
+            }
+            const data = this.checkScreenIdExists(res.data?.[0]?.data?.json, checkPage);
             let screens: any;
-            if (res?.data.length == 0 || !res?.data) {
-                console.log(`select * from ${DB_CONFIG.CRATEDB.mode}.builders where applicationid = '${appId}' AND navigation = 'not_found';`)
+            if (!data) {
                 screens = await this.crateDbService.executeQuery(`select * from ${DB_CONFIG.CRATEDB.mode}meta.builders where applicationid = '${appId}' AND navigation = 'not_found';`);;
+                return new ApiResponse(false, 'Data Retrieved', screens);
             }
 
             // console.log(screens)
+            // return new ApiResponse(true, 'Data Retrieved', true);
             return new ApiResponse(true, 'Data Retrieved', true);
-            return new ApiResponse(true, 'Data Retrieved', screens || false);
         } catch (error) {
             return new ApiResponse(false, error.message);
         }
     }
+    async getuserCommentsByApp(modelType, screenId: string, type: string, appId: string): Promise<ApiResponse<any>> {
+        try {
+            let instance;
+
+            if (screenId) {
+                const res: any = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.usercomment WHERE
+                applicationid = '${appId}' AND screenId = '${screenId}' AND type = ${type};`);
+
+                instance = this.groupData(res?.data)
+            } else {
+                const res: any = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.usercomment WHERE
+                applicationid = '${appId}'  AND type = ${type};`);
+
+                instance = this.groupData(res?.data)
+            }
+            
+            return new ApiResponse(true, 'Data Retrieved', instance);
+        } catch (error) {
+            return new ApiResponse(false, error.message);
+        }
+    }
+    checkScreenIdExists(data, targetScreenId) {
+        for (const item of data) {
+            if (item?.screenId?.trim() === targetScreenId?.trim()) {
+                return true;
+            }
+            if (item.children && item.children.length > 0) {
+                if (this.checkScreenIdExists(item.children, targetScreenId)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
     private flattenArray(inputArray: any[]): any[] {
         const flattenedArray = [];
         const stack = [...inputArray];
-    
+
         while (stack.length > 0) {
-          const item = stack.pop();
-          flattenedArray.push(item);
-    
-          if (item.children && item.children.length > 0) {
-            stack.push(...item.children.reverse());
-          }
+            const item = stack.pop();
+            flattenedArray.push(item);
+
+            if (item.children && item.children.length > 0) {
+                stack.push(...item.children.reverse());
+            }
         }
-    
+
         return flattenedArray;
-      }
+    }
+    groupData(inputArray: any[]): any[] {
+        return inputArray.reduce((result, item) => {
+            if (!item.parentid) {
+                const parent = {
+                    id: item.id, screenid: item.screenid, datetime: item.datetime,
+                    message: item.message,
+                    status: item.status,
+                    organizationId: item.organizationid,
+                    applicationId: item.applicationid,
+                    componentId: item.componentid,
+                    createdBy: item.createdby,
+                    parentId: item.parentid, children: []
+                };
+                result.push(parent);
+            } else {
+                const parent = result.find(parentItem => parentItem.id === item.parentid);
+                if (parent) {
+                    const child = {
+                        id: item.id, screenId: item.screenid, dateTime: item.datetime,
+                        message: item.message,
+                        status: item.status,
+                        organizationId: item.organizationid,
+                        applicationId: item.applicationid,
+                        componentId: item.componentid,
+                        createdBy: item.createdby,
+                        parentId: item.parentid
+                    };
+                    parent.children.push(child);
+                }
+            }
+            return result;
+        }, []);
+    }
 }

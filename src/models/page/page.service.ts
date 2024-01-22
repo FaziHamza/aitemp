@@ -409,7 +409,9 @@ export class PageService {
                             console.log('query : ' + query);
 
                             let queryExec = await this.crateDbService.executeQuery(query);
-
+                            if (queryExec.isSuccess == false) {
+                                return queryExec;
+                            }
                             const innerResult = queryExec?.data;
                             console.log("Table Name " + tableName)
                             tableNameWithId[tableName + 'id'] = innerResult[0]?.id;
@@ -545,6 +547,12 @@ export class PageService {
                                         return modalData[key];
                                     });
                                     substitutedQuery = substitutedQuery.replace('$createdby', user);
+
+                                    if (updateMatches && updateMatches.length > 1) {
+                                        substitutedQuery = substitutedQuery.toLowerCase().replace(/update (\w+)/, `update admin.${tableName}`);
+                                    }else if (deleteMatches && deleteMatches.length > 1) {
+                                        substitutedQuery = substitutedQuery.toLowerCase().replace(/delete from (\w+)/, `delete from admin.${tableName}`);
+                                    }
                                     console.log('modalData : ' + JSON.stringify(modalData))
                                     console.log('tableName : ' + tableName);
                                     if ((tableName == 'orderrequest' || tableName == 'customeclearence' || tableName == 'pmrrequest') && (modalData[tableName + ".tdrapproval"] == 'Approved' || modalData[tableName + '.status'] == 'Approved')) {
@@ -748,7 +756,7 @@ export class PageService {
 
                 try {
                     if (parentId) {
-                        const finalQuery = `${query}${parentId}`;
+                        const finalQuery = `${query}'${parentId}'`;
                         query = JSON.parse(JSON.stringify(finalQuery));
                     }
                     query = query.replace(/\$createdby/g, "'" + user + "'");
@@ -957,8 +965,13 @@ export class PageService {
         return actionExec?.data;
     }
     async getMappingByPolicyIdAppId(policyId, appId, screenId) {
-        let query = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping WHERE policyid = '${policyId}'  AND applicationid = '${appId}' AND screenid = '${screenId}'`;
-        return await this.crateDbService.executeQuery(query);
+        let query = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping WHERE policyid = '${policyId}'  AND applicationid = '${appId}'`;
+        let res = await this.crateDbService.executeQuery(query);
+        let resData = this.checkScreenIdExists(res.data?.[0]?.data?.json, screenId);
+        let obj = {
+            data: resData ? [resData] : null
+        }
+        return obj
     }
     async getActionById(id: string, type?: string, appId?: string) {
         let actionQuery;
@@ -1217,5 +1230,18 @@ export class PageService {
         const matches = query.match(/\$\w+/g);
         return matches ? matches.map(match => match.substring(1)) : [];
     }
-    
+    checkScreenIdExists(data, targetScreenId) {
+        for (const item of data) {
+            if (item?.screenId?.trim() === targetScreenId?.trim()) {
+                return item;
+            }
+            if (item.children && item.children.length > 0) {
+                if (this.checkScreenIdExists(item.children, targetScreenId)) {
+                    return item;
+                }
+            }
+        }
+        return false;
+    }
+
 }
