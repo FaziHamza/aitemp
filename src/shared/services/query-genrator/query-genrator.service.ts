@@ -185,6 +185,32 @@ export class QueryGenratorService {
 
         return { query, values };
     }
+    generateInsertQueryExcludedColumnsExternalLogin(tableName, dataObject, excludedColumns = [],Id:any) {
+        const id = uuidv4();
+
+
+        // Extract keys and values from the dataObject
+        const keys = Object.keys(dataObject);
+        const allvalues = Object.values(dataObject);
+
+        // Filter out excluded columns
+        const filteredKeys = keys.filter(key => !excludedColumns.includes(key));
+        const values = allvalues.filter((_, index) => !excludedColumns.includes(keys[index]));
+        if(Id==null || Id==""){
+                        
+        filteredKeys.unshift('id');
+        // Include the generated UUID in the values
+        values.unshift(id);        
+        }
+
+        // Construct the SQL query with actual values
+        const valuesString = values.map(value => `'${value}'`).join(', ');
+
+        // Construct the SQL query using template literal
+        const query = `INSERT INTO ${tableName} (${filteredKeys.join(', ')})   VALUES (${valuesString}) RETURNING *`;
+
+        return { query, values };
+    }
     generateUpdateQuery(tableName, id, dataObject) {
         // Extract keys and values from the dataObject
         const keys = Object.keys(dataObject);
