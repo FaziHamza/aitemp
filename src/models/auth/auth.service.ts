@@ -84,8 +84,26 @@ export class AuthService {
 
         // Save the username and hashedPassword to the database
     }
+    async createUserExternal(body): Promise<any> {
+        console.log(body);
+        let checkUserQuery=`select * from dev_meta.users where email='${body?.email}' and applicationid='${body?.applicationId}' `;
+        let result=await this.crateDbService.executeQuery(checkUserQuery);
+        console.log(result)
+        if(result.data.length>0){
+            return (result);
+        }
+        const hashedPassword = await this.hashService.hashPassword(body?.password);
+        body.password = hashedPassword;
+        console.log("After Pwd  : " + JSON.stringify(body));
+        const excludedColumns = ['responsekey', 'domain'];
 
-    async login(type, user: any, page?: any, token?: string): Promise<ApiResponse<any>> {
+        const { query, values } = this.queryGenratorService.generateInsertQueryExcludedColumnsExternalLogin(`${DB_CONFIG.CRATEDB.mode}meta.users`, body, excludedColumns,body.id);
+        console.log(query);
+        return await this.crateDbService.executeQuery(query);
+
+        // Save the username and hashedPassword to the database
+    }
+    async login(type,user: any): Promise<ApiResponse<any>> {
         try {
             const getTableName = type.split('.')[0].toLowerCase();
             if (typeof user === 'string') {

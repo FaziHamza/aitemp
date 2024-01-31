@@ -185,7 +185,7 @@ export class QueryGenratorService {
 
         return { query, values };
     }
-    generateInsertQueryExcludedColumnsExternalLogin(tableName, dataObject, excludedColumns = [], Id: any) {
+    generateInsertQueryExcludedColumnsExternalLogin(tableName, dataObject, excludedColumns = [],Id:any) {
         const id = uuidv4();
 
 
@@ -196,11 +196,11 @@ export class QueryGenratorService {
         // Filter out excluded columns
         const filteredKeys = keys.filter(key => !excludedColumns.includes(key));
         const values = allvalues.filter((_, index) => !excludedColumns.includes(keys[index]));
-        if (Id == null || Id == "") {
-
-            filteredKeys.unshift('id');
-            // Include the generated UUID in the values
-            values.unshift(id);
+        if(Id==null || Id==""){
+                        
+        filteredKeys.unshift('id');
+        // Include the generated UUID in the values
+        values.unshift(id);        
         }
 
         // Construct the SQL query with actual values
