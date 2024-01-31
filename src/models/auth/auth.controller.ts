@@ -44,17 +44,6 @@ export class AuthController {
       return new ApiResponse(false, error.message);
     }
   }
-  @Post('/signupExternal')
-  async createUserExternalLogin(@Body() body: any, @Request() req
-  ): Promise<any> {
-    try {
-      console.log("body " + JSON.stringify(body))
-      return await this.authService.createUserExternal(body);
-    } catch (error) {
-      // Handle the error here, you can log it or return a specific error response
-      return new ApiResponse(false, error.message);
-    }
-  }
   @Post('/login/:type')
   async login(@Body() req, @Param('type') type: string) {
     // console.dir(req)
