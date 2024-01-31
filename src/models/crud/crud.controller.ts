@@ -10,21 +10,22 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { CrudService } from './crud.service';
+import { TokenService } from '../token/token.service';
 
 // @UseGuards(AuthGuard('jwt'))
 @Controller('knex-crud')
 export class CrudController {
-    constructor(private readonly knexCrudService: CrudService) { }
+    constructor(private readonly knexCrudService: CrudService ,private readonly tokenService: TokenService) { }
 
     @Post(':table')
     async create(
         @Param('table') table: string,
         @Body() data: any,
-        @Headers('OrganizationId') organizationId: string, @Headers('ApplicationId') appId: string, @Headers('userId') userId: string
+        @Headers('authorization') authHeader: string
     ): Promise<number> {
         try {
-
-            const id = await this.knexCrudService.create(table, data, organizationId, appId);
+        const { organizationId, applicationId} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+            const id = await this.knexCrudService.create(table, data, organizationId, applicationId);
             console.log(id);
             return id;
         } catch (error) {

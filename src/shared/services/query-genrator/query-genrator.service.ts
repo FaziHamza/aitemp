@@ -160,7 +160,7 @@ export class QueryGenratorService {
 
         return { query, values: [] };
     }
-   
+
     generateInsertQueryExcludedColumns(tableName, dataObject, excludedColumns = []) {
         const id = uuidv4();
 
@@ -176,6 +176,32 @@ export class QueryGenratorService {
 
         // Include the generated UUID in the values
         values.unshift(id);
+
+        // Construct the SQL query with actual values
+        const valuesString = values.map(value => `'${value}'`).join(', ');
+
+        // Construct the SQL query using template literal
+        const query = `INSERT INTO ${tableName} (${filteredKeys.join(', ')})   VALUES (${valuesString}) RETURNING *`;
+
+        return { query, values };
+    }
+    generateInsertQueryExcludedColumnsExternalLogin(tableName, dataObject, excludedColumns = [], Id: any) {
+        const id = uuidv4();
+
+
+        // Extract keys and values from the dataObject
+        const keys = Object.keys(dataObject);
+        const allvalues = Object.values(dataObject);
+
+        // Filter out excluded columns
+        const filteredKeys = keys.filter(key => !excludedColumns.includes(key));
+        const values = allvalues.filter((_, index) => !excludedColumns.includes(keys[index]));
+        if (Id == null || Id == "") {
+
+            filteredKeys.unshift('id');
+            // Include the generated UUID in the values
+            values.unshift(id);
+        }
 
         // Construct the SQL query with actual values
         const valuesString = values.map(value => `'${value}'`).join(', ');
@@ -203,6 +229,12 @@ export class QueryGenratorService {
         // Construct the SQL query using template literal
         const query = `DELETE FROM ${tableName} WHERE id = '${id}'`;
 
+        return { query };
+    }
+    checkChildExist(tableName, idName, id) {
+
+        // Construct the SQL query using template literal
+        const query = `Select *  FROM ${tableName} WHERE ${idName} = '${id}'`;
         return { query };
     }
     convertObjectToString(obj) {
@@ -284,10 +316,37 @@ export class QueryGenratorService {
         return valuesString
 
     }
+    complexInsertQueryGenerator(data, tablename) {
+        const fields = Object.keys(data).map(key => `${key}`);
+        const values = Object.keys(data).map(key => {
+            // Assuming all values are strings or can be safely cast to strings
+            // Escaping single quotes in string values for SQL
+            let value = data[key].toString().replace(/'/g, "''");
+            return `'${value}'`;
+        });
 
-
-
+        return `INSERT INTO ${tablename} (${fields.join(', ')}) VALUES (${values.join(', ')});`;
+    }
+    complexValueGenerator(data) {
+        const values = Object.keys(data).map(key => {
+            // Assuming all values are strings or can be safely cast to strings
+            // Escaping single quotes in string values for SQL
+            let value = data[key].toString().replace(/'/g, "''");
+            return `'${value}'`;
+        });
+        return values;
+    }
+    updateSingalObject(obj: any): any {
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                if (typeof obj[key] === 'string') {
+                    obj[key] = obj[key].replace(/'/g, ''); // Remove single quotes
+                } else if (typeof obj[key] === 'object') {
+                    // Recursively process nested objects
+                    obj[key] = this.updateSingalObject(obj[key]);
+                }
+            }
+        }
+        return obj;
+    }
 }
-
-
-// INSERT INTO dev_meta.users (username, email, firstName, lastName, companyName, password, accreditationNumber, organizationId, applicationId, status, domain, contactnumber, responsekey) VALUES ('name@gmail.com', 'name@gmail.com', 'Firstname', 'Lastname', 'Company name', '$argon2id$v=19$m=65536,t=3,p=4$yWONbKdVoLFRas+9670ZtA$IRJid3vhV0hdyLAUW47BuCAA2V/cXIehECkLSsuSPm0', '10', '64abfde576ac2e992aa14d75', '64e8766e9fe17461303c0a54', 'Pending', 'taskmanager.com', '00000', '03AFcWeA66CSxteao_AuN57xsdpTmd7oTeXV2uzo3UmXvnHkbpnKohV9SsraFU17ZJc5pPm6Z8D1NbVpHoHn6XKRgJHQTc3xo0twjjGrqz1cjnnn-yW2hVCl9fR_nXv9GOHphWjN_GGp6tfcpR8A2Lr3CoSPrFn-8p_eJFYW2A5O3uGt-mgtRr2u-MOnUe6RLtRNLrG4-O9H5S4OZr0GmkzEp-ENsq2Q_U5F1ZcTn3tTs7yjnRo-6kPTyt0MBZXbploG6_1wKr-L962OAWMvZGdmzRIwGtGU95Aeb0jxIt47CCjQ4ucovYgEXDAuzhrdvVsRc9krbzCwAltw63pohIhRslcvSqVAM2-FCxGvO6N046gnQq92pSfUStCblJjmYmTBZVhwcP5ONT7zNYz5wmLxG0Po97qW5iFEZOPu4dwEeZ-Al0iOYXs_oZRp-398m0uQKEOsXC0qApuqrMJT4K4FMAopZWbcQZucZOcQBq7irkhCzaxln0Or1hPTQ_y6yj1lzTxlaCdCn5xqITVuEEy6zMvTNunYjhZctv8IF0udk63W0B7ItBSA8y4l9I9jOjt5sIXoOmflwEMsA1GDSAP_bd30YeBWvwEA')

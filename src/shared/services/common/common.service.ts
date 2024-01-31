@@ -38,6 +38,8 @@ export class CommonService {
         { key: "controls", value: `${DB_CONFIG.CRATEDB.mode}meta.controls` },
         { key: "buildersnew", value: `${DB_CONFIG.CRATEDB.mode}meta.buildersnew` },
         { key: "policymappingnew", value: `${DB_CONFIG.CRATEDB.mode}meta.policymappingnew` },
+        { key: "emailtemmplatesdemo", value: `${DB_CONFIG.CRATEDB.mode}meta.emailtemmplatesdemo` },
+        { key: "executecustomquery", value: `admin.executecustomquery` },
         // use name as table name  --getpolicy
         { key: "getpolicy", value: `${DB_CONFIG.CRATEDB.mode}meta.getpolicy` },
     ]

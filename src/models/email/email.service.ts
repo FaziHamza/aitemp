@@ -986,23 +986,21 @@ export class EmailService {
                <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Account Registration - Spectrum Order Portal</title>
+                  <title>Account Registration - PMO Governance Managment Order Portal</title>
                </head>
                <body style="font-family: Arial, sans-serif; padding: 30px;">
                   <div style="padding-left: 50px; padding-top: 5px">
                      <p style="margin-bottom: 30px;">Dear $name,</p>
-                     <p style="margin-bottom: 10px;">Welcome to the COP28 UAE Event!</p>
-                     <p style="margin-bottom: 10px;">Thank you for registering for the COP28 Spectrum Order Portal.</p>
-                     <p style="margin-bottom: 10px;">You will receive an email notification once your registration is approved by the Spectrum </p>
+                     <p style="margin-bottom: 10px;">Welcome to the PMO Governance Managment Order Portal</p>
+                     <p style="margin-bottom: 10px;">Thank you for registering for the PMO Governance Managment Order Portal.</p>
+                     <p style="margin-bottom: 10px;">You will receive an email notification once your registration is approved by the PMO Governance Managment </p>
                      <p style="margin-bottom: 30px;">Team.</p>
                      <p>If you require any assistance for a request submission, please contact us at </p>
-                     <p style="margin-bottom: 30px;"> <a href="mailto:cop28spectrum@esharah.ae">cop28spectrum@esharah.ae</a></p>
+                     <p style="margin-bottom: 30px;"> <a href="mailto:shakeel.cloud@gmail.com">shakeel.cloud@gmail.com</a></p>
                      <p style="margin-bottom: 10px;">Best Regards,</p>
-                     <p style="margin-bottom: 30px;">COP28 Spectrum Management Team</p>
-                     <p><a href="https://spectrum.expocitydubai.com">spectrum.expocitydubai.com</a></p>
-                     <p>Spectrum Help Desk Phone Number: <a href="tel:+971543060723">+971 54 306 0723</a></p>
-                     <p>Spectrum Blue Zone Phone Number: <a href="tel:+971543060743">+971 54 306 0743</a></p>
-                     <p>Spectrum Green Zone Phone Number: <a href="tel:+971543059757">+971 54 305 9757</a></p>
+                     <p style="margin-bottom: 30px;">PMO Governance Managment Management Team</p>
+                     <p><a href="https://expocitydubai.com ">expocitydubai.com </a></p>
+                     <p>PMO Governance Managment Help Desk Phone Number: <a href="tel:+971543060723">+971 54 306 0723</a></p>
                   </div>
                </body>
             </html>
@@ -1013,15 +1011,14 @@ export class EmailService {
                <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Account Approval - Spectrum Order Portal</title>
+                  <title>Account Approval - PMO Governance Managment Order Portal</title>
                   <style>
                   </style>
                </head>
                <body style=" font-family: Arial, sans-serif;">
                   <div style="padding-left: 50px; padding-top: 5px">
                      <p>Dear $name,</p>
-                     <p>Welcome to the COP28 UAE Event!</p>
-                     <p style="margin-bottom: 10px;">We are pleased to inform you that your registration for the Spectrum Order Portal.</p>
+                     <p style="margin-bottom: 10px;">We are pleased to inform you that your registration for the PMO Governance Managment Order Portal.</p>
                      <p style="margin-bottom: 10px;">has been successfully approved, and you can proceed with a new request for your </p>
                      <p style="margin-bottom: 30px;">equipment.</p>
                      <p><strong>Your Account Details:</strong></p>
@@ -1029,13 +1026,11 @@ export class EmailService {
                         <li>Email Address: $username</li>
                      </ul>
                      <p>If you require any assistance for a request submission, please contact us at </p>
-                     <p><a href="cop28spectrum@esharah.ae">cop28spectrum@esharah.ae</a>.</p>
+                     <p><a href="shakeel.cloud@gmail.com">shakeel.cloud@gmail.com</a>.</p>
                      <p>Best Regards,</p>
-                     <p style="margin-bottom: 60px;">COP28 Spectrum Management Team</p>
-                     <p><a href="https://spectrum.expocitydubai.com">spectrum.expocitydubai.com</a></p>
+                     <p style="margin-bottom: 60px;">PMO Governance Managment Team</p>
+                     <p><a href="https://expocitydubai.com ">expocitydubai.com </a></p>
                      <p>Help Desk Phone Number: +971 54 306 0723</p>
-                     <p>Blue Zone Phone Number: +971 54 306 0743</p>
-                     <p>Green Zone Phone Number: +971 54 305 9757</p>
                   </div>
                </body>
             </html>
@@ -1046,12 +1041,12 @@ export class EmailService {
                <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Password Reset Successful - Spectrum Order Portal</title>
+                  <title>Password Reset Successful - PMO Governance Managment Order Portal</title>
                </head>
                <body style="font-family: Arial, sans-serif;">
                   <div style="padding-left: 50px; padding-top: 5px">
                      <p style="margin-bottom: 30px;">Dear $name,</p>
-                     <p style="margin-bottom: 10px;">Please be informed that your password for Spectrum Order Portal has been reset</p>
+                     <p style="margin-bottom: 10px;">Please be informed that your password for PMO Governance Managment Order Portal has been reset</p>
                      <p>successfully.</p>
                      <p style="margin-bottom: 30px;">For access to your account, please follow the below details:</p>
                      <p style="margin-bottom: 10px;"><strong>Your Account Details:</strong></p>
@@ -1060,9 +1055,9 @@ export class EmailService {
                      </ul>
                      <p style="margin-bottom: 10px;">If you did not send a request to reset your password, please contact our</p>
                      <p style="margin-bottom: 30px;">support team immediately at <a href="$email">$email</a>.</p>
-                     <p style="margin-bottom: 30px;">Thank you for using Spectrum Order Portal.</p>
+                     <p style="margin-bottom: 30px;">Thank you for using PMO Governance Managment Order Portal.</p>
                      <p style="margin-bottom: 10px;">Best Regards,</p>
-                     <p>COP28 Spectrum Management Team</p>
+                     <p>PMO Governance Managment</p>
                      <p style="margin-bottom: 10px;"><a href="$webistUrl">$webistUrl</a></p>
                      <p style="margin-bottom: 10px;"> $ContactInformation</p>
                   </div>
@@ -1075,12 +1070,12 @@ export class EmailService {
                <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>Password Change Request - Spectrum Order Portal</title>
+                  <title>Password Change Request -  PMO Governance Managment Order Portal</title>
                </head>
                <body style="font-family: Arial, sans-serif; line-height: 1.6;">
                   <div style="padding-left: 50px; padding-top: 5px">
                      <p style="margin-bottom: 30px;">Dear $name,</p>
-                     <p >We received a request for a password change on your Spectrum Order Portal. You <br>
+                     <p >We received a request for a password change on your PMO Governance Managment Order Portal. You <br>
                         can reset your password through the below link:
                      </p>
                      <p style="margin-bottom: 10px;"><a href="$resetLink">$resetLink</a>.</p>
@@ -1092,16 +1087,14 @@ export class EmailService {
                      </ul>
                      <p style="margin-bottom: 30px; margin-top: 26px;">Please note that this link is valid for a limited time and will expire after $expiryDate.</p>
                      <p style="margin-bottom: 10px;">In case you didn't request your password reset, please ignore this email.</p>
-                     <p style="margin-bottom:30px ;">Thank you for using the Spectrum Order Portal. In case of more information or <br>
+                     <p style="margin-bottom:30px ;">Thank you for using the PMO Governance Managment Order Portal. In case of more information or <br>
                         clarifications please refer to the Contact Information below. 
                      </p>
                      <p style="margin-bottom: 30px;">Best Regards,<br>
-                        COP28 Spectrum Management Team
+                     PMO Governance Managment Team
                      </p>
-                     <p><a href="https://spectrum.expocitydubai.com" style="margin-bottom: 15px;">spectrum.expocitydubai.com</a></p>
-                     <p style="margin-bottom: 10px;">Spectrum Help Desk Phone Number: +971 54 306 0723</p>
-                     <p style="margin-bottom: 10px;">Spectrum Blue Zone Phone Number: +971 54 306 0743</p>
-                     <p style="margin-bottom: 10px;">Spectrum Green Zone Phone Number: +971 54 305 9757</p>
+                     <p><a href="https://expocitydubai.com" style="margin-bottom: 15px;">expocitydubai.com</a></p>
+                     <p style="margin-bottom: 10px;">PMO Governance Managment Help Desk Phone Number: +971 54 306 0723</p>
                   </div>
                </body>
             </html>

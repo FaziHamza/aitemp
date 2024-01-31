@@ -13,7 +13,7 @@ export class CrateDbService {
         this.cratePool = new Pool({
             connectionString: CRATE_CONNECTION_STRING,
             idleTimeoutMillis: 15000,
-            connectionTimeoutMillis: 20000,
+            connectionTimeoutMillis: 5000,
             query_timeout: 30000,
         });
     }

@@ -1,48 +1,55 @@
 import { ApiResponse } from 'src/shared/entities/common/apiResponse';
 import { PageService } from './page.service';
-import { Body, Controller, Get, Param, Post, Query, Headers, UseInterceptors, UploadedFile, Req, } from '@nestjs/common';
-
+import { Body, Controller, Get, Param, Post, Query, Headers, UseInterceptors, UploadedFile, Req, Request } from '@nestjs/common';
+import { TokenService } from '../token/token.service';
 
 @Controller('knex-query')
 export class PageController {
-    constructor(private readonly pageService: PageService) { }
+    constructor(private readonly pageService: PageService , private readonly tokenService: TokenService) { }
 
     @Post('')
-    async create(@Body() data: any, @Req() request: any, @Headers('ApplicationId') appId: string, @Headers('screenBuildId') screenBuildId: string, @Headers('OrganizationId') orgId: string, @Headers('User') user: string,) {
-        return this.pageService.saveDb(data, screenBuildId, appId, orgId, request, user);
+    async create(@Body() data: any, @Req() request: any, @Headers('authorization') authHeader: string, @Headers('screenBuildId') screenBuildId: string, @Headers('User') user: string) {
+        const { organizationId, applicationId } = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return this.pageService.saveDb(data, screenBuildId, applicationId, organizationId, request, user);
     }
     @Post('/execute-actions/:screenBuilderId')
-    async executeActions(@Body() data: any, @Headers('ApplicationId') appId: string, @Headers('policyId') policyId: string, @Headers('screenBuildId') screenBuildId: string, @Headers('User') user: string, @Headers('OrganizationId') orgId: string, @Headers('screenId') screenId: string, @Param('screenBuilderId') screenBuilderId: string) {
-        return this.pageService.processActionRules(appId, orgId, user, policyId, screenId, screenBuildId, screenBuilderId, data);
+    async executeActions(@Request() req, @Body() data: any,@Headers('authorization') authHeader: string, @Headers('screenBuildId') screenBuildId: string, @Headers('screenId') screenId: string, @Param('screenBuilderId') screenBuilderId: string) {
+        const { organizationId, applicationId, username , policyid , externalLogin} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return this.pageService.processActionRules(req, applicationId, organizationId, username, policyid, screenId, screenBuildId, screenBuilderId, data , externalLogin);
     }
     @Post('/execute-rules/:ruleId')
-    async executeRules(@Body() data: any, @Headers('ApplicationId') appId: string, @Req() request: any, @Headers('screenBuildId') screenBuildId: string, @Headers('User') user: string, @Headers('policyId') policyId: string, @Headers('OrganizationId') orgId: string, @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string) {
-        return this.pageService.executeRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data);
+    async executeRules(@Request() req, @Body() data: any, @Headers('authorization') authHeader, @Req() request: any, @Headers('screenBuildId') screenBuildId: string, @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string) {
+        const { organizationId, applicationId, username , policyid , externalLogin} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return this.pageService.executeRules(req, applicationId, organizationId, username, request, policyid, screenId, screenBuildId, ruleId, data , externalLogin);
     }
     @Post('/executeDelete-rules/:ruleId')
-    async executeDeleteRules(@Body() data: any, @Headers('ApplicationId') appId: string, @Req() request: any, @Headers('screenBuildId') screenBuildId: string, @Headers('User') user: string, @Headers('policyId') policyId: string, @Headers('OrganizationId') orgId: string, @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string) {
-        return this.pageService.executeDeleteRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data);
+    async executeDeleteRules(@Request() req, @Body() data: any, @Headers('authorization') authHeader, @Req() request: any, @Headers('screenBuildId') screenBuildId: string, @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string) {
+        const { organizationId, applicationId, userId, policyid , externalLogin} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return this.pageService.executeDeleteRules(req, applicationId, organizationId, userId, request, policyid, screenId, screenBuildId, ruleId, data , externalLogin);
     }
     @Get('/getexecute-rules/:ruleId/:parentId?')
-    async getexecuteRules(@Headers('ApplicationId') appId: string, @Req() request: any,
-        @Headers('OrganizationId') orgId: string, @Headers('policyId') policyId: string, @Headers('screenBuildId') screenBuildId: string,
-        @Headers('User') user: string, @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string, @Param('parentId') parentId: string,
+    async getexecuteRules(@Req() request: any,
+        @Request() req,
+        @Headers('authorization') authHeader, @Headers('screenBuildId') screenBuildId: string,
+         @Headers('screenId') screenId: string, @Param('ruleId') ruleId: string, @Param('parentId') parentId: string,
         @Query('search') search?: string,
         @Query('filters') filters?: string,
         @Query('page') page?: number,
         @Query('pageSize') pageSize?: number,) {
         console.log(`search : ${search}`)
-        return this.pageService.getexecuteRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, parentId, page, pageSize, search, filters);
+        const { organizationId, applicationId, userId, policyid , externalLogin} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return this.pageService.getexecuteRules(req, applicationId, organizationId, userId, request, policyid, screenId, screenBuildId, ruleId, parentId, page, pageSize, search, filters,externalLogin);
     }
     @Get('/getAction/:id/:parentId')
     async getDb(
         @Param('id') id: string,
-        @Headers('User') user: string,
+        @Headers('authorization') authHeader,
         @Param('parentId') parentId: string,
         @Query('page') page?: number,
         @Query('pageSize') pageSize?: number,
     ) {
-        const result = this.pageService.getDb(id, user, parentId, page, pageSize, '');
+        const {username} = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        const result = this.pageService.getDb(id, username, parentId, page, pageSize, '');
         return result;
     }
 
@@ -88,8 +95,9 @@ export class PageController {
     //     }
     // }
     @Post('executeQuery/:actionId?')
-    async executeQuery(@Body() data: any, @Req() request: any, @Headers('ApplicationId') appId: string, @Param('actionId') actionId: string, @Headers('User') user: string): Promise<ApiResponse<any[]>> {
-        return await this.pageService.executeDeleteQueries(data, appId, request, actionId, user);
+    async executeQuery(@Body() data: any, @Req() request: any, @Headers('authorization') authHeader, @Param('actionId') actionId: string): Promise<ApiResponse<any[]>> {
+        const { organizationId, applicationId, userId, username } = await this.tokenService.decodeTokenDetail(authHeader.split(' ')[1]);
+        return await this.pageService.executeDeleteQueries(data, applicationId, request, actionId, username);
     }
 
     // @Post('savecsv/:ruleId')
@@ -98,5 +106,5 @@ export class PageController {
     //     return this.pageService.uploadExcelFileV2(file, ruleId, appId, orgId, user);
     //     // return this.pageService.uploadExcelFile(file, tableName);
     // }
-  
+
 }

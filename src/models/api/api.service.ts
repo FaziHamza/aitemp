@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { CrateDbService } from 'src/common/common/crateDb.service';
-import { DB_CONFIG } from 'src/shared/config/global-db-config';
+import { DB_CONFIG, SPECTRUM_CONFIG, globalCorsOrigins } from 'src/shared/config/global-db-config';
 import { ApiResponse } from 'src/shared/entities/common/apiResponse';
 import { CommonService } from 'src/shared/services/common/common.service';
 import { HashService } from 'src/shared/services/hash/hash.service';
 import { QueryGenratorService } from 'src/shared/services/query-genrator/query-genrator.service';
+import { EmailService } from '../email/email.service';
+import { json } from 'stream/consumers';
 const { v4: uuidv4 } = require('uuid');
+
 
 @Injectable()
 export class ApiService {
@@ -17,118 +20,211 @@ export class ApiService {
         private queryGenratorService: QueryGenratorService,
         private readonly commonService: CommonService,
         private hashService: HashService,
+        private emailService: EmailService
     ) {
 
 
     }
 
     async get() {
-        const cmd = `select * from ${DB_CONFIG.CRATEDB.mode}met.organization limit 100;`
+        const cmd = `select * from ${DB_CONFIG.CRATEDB.mode}meta.organization limit 100;`
         return await this.crateDbService.executeQuery(cmd);
     }
 
-    async getAll(tablename: string, organizationId, appId, userId) {
+    async getAll(tablename: string, organizationId, appId, userId, user) {
         const getTableName = tablename.split('.')[1].toLowerCase();
         const dbType = tablename.split('.')[0].toLowerCase();
 
         let cmd: string;
+        if (user?.toLowerCase() == 'shakeel.cloud@gmail.com') {
+            switch (getTableName) {
+                case 'screenbuilder':
+                    cmd = `SELECT sc.*, dep.name as departmentname, apps.name as applicationname
+                           FROM ${dbType}.ScreenBuilder sc
+                           JOIN ${dbType}.Department dep ON sc.departmentid = dep.id
+                           JOIN ${dbType}.Application apps ON sc.applicationid = apps.id
+                             order by sc.createddate desc;`;
+                    break;
 
-        switch (getTableName) {
-            case 'screenbuilder':
-                cmd = `SELECT sc.*, dep.name as departmentname, apps.name as applicationname
-                       FROM ${dbType}.ScreenBuilder sc
-                       JOIN ${dbType}.Department dep ON sc.departmentid = dep.id
-                       JOIN ${dbType}.Application apps ON sc.applicationid = apps.id
-                       Where applicationid = '${appId}' order by sc.createddate desc;`;
-                break;
+                case 'usermapping':
+                    cmd = `select up.*, p.name as policyname , us.username as username from ${dbType}.usermapping up 
+                            join ${dbType}.policy p on p.id  = up.policyid
+                            join ${dbType}.users us on us.id = up.userid  order by up.createddate desc; `;
 
-            case 'usermapping':
-                cmd = `select up.*, p.name as policyname , us.username as username from ${dbType}.usermapping up 
-                        join ${dbType}.policy p on p.id  = up.policyid
-                        join ${dbType}.users us on us.id = up.userid where up.applicationid  = '${appId}' order by up.createddate desc; `;
+                    break;
+                case 'department':
+                    cmd = `SELECT * FROM ${tablename}  order by createddate desc;`;
+                    break;
+                case 'organization':
+                    cmd = `SELECT * FROM ${tablename}  order by createddate desc;`;
+                    break;
+                case 'application':
+                    cmd = `SELECT * FROM ${tablename}  order by createddate desc;`;
+                    break;
+                case 'controls':
+                    cmd = `SELECT * FROM ${tablename} `;
+                    break;
+                default:
+                    cmd = `SELECT * FROM ${tablename} Where applicationid = '${appId}' order by createddate desc;`;
+                    break;
+            }
+        } else {
+            switch (getTableName) {
+                case 'screenbuilder':
+                    cmd = `SELECT sc.*, dep.name as departmentname, apps.name as applicationname
+                           FROM ${dbType}.ScreenBuilder sc
+                           JOIN ${dbType}.Department dep ON sc.departmentid = dep.id
+                           JOIN ${dbType}.Application apps ON sc.applicationid = apps.id
+                           Where applicationid = '${appId}' order by sc.createddate desc;`;
+                    break;
 
-                break;
-            case 'department':
-                cmd = `SELECT * FROM ${tablename} WHERE organizationid = '${organizationId}' order by createddate desc;`;
-                break;
-            case 'organization':
-                cmd = `SELECT * FROM ${tablename} where id  = '${organizationId}' order by createddate desc;`;
-                break;
-            case 'application':
-                cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND organizationid = '${organizationId}'  order by createddate desc;`;
-                break;
-            case 'controls':
-                cmd = `SELECT * FROM ${tablename} `;
-                break;
-            default:
-                cmd = `SELECT * FROM ${tablename} Where applicationid = '${appId}' order by createddate desc;`;
-                break;
+                case 'usermapping':
+                    cmd = `select up.*, p.name as policyname , us.username as username from ${dbType}.usermapping up 
+                            join ${dbType}.policy p on p.id  = up.policyid
+                            join ${dbType}.users us on us.id = up.userid where up.applicationid  = '${appId}' order by up.createddate desc; `;
+
+                    break;
+                case 'department':
+                    cmd = `SELECT * FROM ${tablename} WHERE organizationid = '${organizationId}' order by createddate desc;`;
+                    break;
+                case 'organization':
+                    cmd = `SELECT * FROM ${tablename} where id  = '${organizationId}' order by createddate desc;`;
+                    break;
+                case 'application':
+                    cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND organizationid = '${organizationId}'  order by createddate desc;`;
+                    break;
+                case 'controls':
+                    cmd = `SELECT * FROM ${tablename} `;
+                    break;
+                default:
+                    cmd = `SELECT * FROM ${tablename} Where applicationid = '${appId}' order by createddate desc;`;
+                    break;
+            }
         }
+
 
         return await this.crateDbService.executeQuery(cmd);
     }
 
-    async getById(tablename: string, id: any, organizationId, appId, userId) {
+    async getById(tablename: string, id: any, organizationId, appId, userId, user) {
         const getTableName = tablename.split('.')[1].toLowerCase();
         const dbMode = tablename.split('.')[0].toLowerCase();
 
         let cmd: string;
+        if (user?.toLowerCase() == 'shakeel.cloud@gmail.com') {
+            switch (getTableName) {
+                case 'department':
+                    cmd = `SELECT * FROM ${tablename} WHERE organizationid = '${id}' order by  createddate desc;`;
+                    break;
 
-        switch (getTableName) {
-            case 'department':
-                cmd = `SELECT * FROM ${tablename} WHERE organizationid = '${id}' order by  createddate desc;`;
-                break;
+                case 'application':
+                    cmd = `SELECT * FROM ${tablename} WHERE  departmentid = '${id}'  order by  createddate desc;`;
+                    break;
 
-            case 'application':
-                cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND departmentid = '${id}' AND organizationid = '${organizationId}' order by  createddate desc;`;
-                break;
+                case 'screenbuilder':
+                case 'menu':
+                    cmd = `SELECT * FROM ${tablename} WHERE applicationid = '${id}' order by  createddate desc;`;
+                    break;
+                case 'actionss':
+                    cmd = `SELECT * FROM ${dbMode}.actions WHERE applicationid = '${id}' order by  createddate desc;`;
+                    break;
 
-            case 'screenbuilder':
-            case 'menu':
-                cmd = `SELECT * FROM ${tablename} WHERE applicationid = '${id}' order by  createddate desc;`;
-                break;
-            case 'actionss':
-                cmd = `SELECT * FROM ${dbMode}.actions WHERE applicationid = '${id}' order by  createddate desc;`;
-                break;
+                case 'applicationtheme':
+                    cmd = `SELECT * FROM ${tablename} WHERE themename = '${id}' AND applicationid = '${appId}';`;
+                    break;
+                case 'builders':
+                case 'buildersnew':
+                    const isObjectId = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(id);
+                    if (isObjectId)
+                        cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}' order by createddate desc limit 1;`;
+                    else
+                        cmd = `SELECT * FROM ${tablename} WHERE navigation = '${id}' AND applicationid = '${appId}' order by createddate desc limit 1;`;
 
-            case 'applicationtheme':
-                cmd = `SELECT * FROM ${tablename} WHERE themename = '${id}' AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
-            case 'builders':
-            case 'buildersnew':
-                const isObjectId = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(id);
-                if (isObjectId)
-                    cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}'  AND applicationid = '${appId}' ;`;
-                else
-                    cmd = `SELECT * FROM ${tablename} WHERE navigation = '${id}'  AND applicationid = '${appId}' ;`;
+                    break;
 
-                break;
+                case 'validationrule':
+                case 'uirule':
+                case 'businessrule':
+                case 'gridbusinessrule':
+                case 'actions':
+                case 'actionrule':
+                case 'cacherule':
+                    cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}'   order by  createddate desc;`;
+                    break;
+                case 'getpolicy':
+                    cmd = `SELECT * FROM ${dbMode}.policymapping WHERE userId = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
 
-            case 'validationrule':
-            case 'uirule':
-            case 'businessrule':
-            case 'gridbusinessrule':
-            case 'actions':
-            case 'actionrule':
-            case 'cacherule':
-                cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
-            case 'getpolicy':
-                cmd = `SELECT * FROM ${dbMode}.policymapping WHERE userId = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
-
-            case 'policymapping':
-                cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
-            case 'policymappingnew':
-                cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
+                case 'policymapping':
+                    cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+                case 'policymappingnew':
+                    cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
 
 
-            default:
-                cmd = `SELECT * FROM ${tablename} WHERE id = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
-                break;
+                default:
+                    cmd = `SELECT * FROM ${tablename} WHERE id = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+            }
+        } else {
+            switch (getTableName) {
+                case 'department':
+                    cmd = `SELECT * FROM ${tablename} WHERE organizationid = '${id}' order by  createddate desc;`;
+                    break;
+
+                case 'application':
+                    cmd = `SELECT * FROM ${tablename} WHERE id = '${appId}' AND departmentid = '${id}' AND organizationid = '${organizationId}' order by  createddate desc;`;
+                    break;
+
+                case 'screenbuilder':
+                case 'menu':
+                    cmd = `SELECT * FROM ${tablename} WHERE applicationid = '${id}' order by  createddate desc;`;
+                    break;
+                case 'actionss':
+                    cmd = `SELECT * FROM ${dbMode}.actions WHERE applicationid = '${id}' order by  createddate desc;`;
+                    break;
+
+                case 'applicationtheme':
+                    cmd = `SELECT * FROM ${tablename} WHERE themename = '${id}' AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+                case 'builders':
+                case 'buildersnew':
+                    const isObjectId = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/.test(id);
+                    if (isObjectId)
+                        cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}'  AND applicationid = '${appId}' ;`;
+                    else
+                        cmd = `SELECT * FROM ${tablename} WHERE navigation = '${id}'  AND applicationid = '${appId}' ;`;
+
+                    break;
+
+                case 'validationrule':
+                case 'uirule':
+                case 'businessrule':
+                case 'gridbusinessrule':
+                case 'actions':
+                case 'actionrule':
+                case 'cacherule':
+                    cmd = `SELECT * FROM ${tablename} WHERE screenbuilderid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+                case 'getpolicy':
+                    cmd = `SELECT * FROM ${dbMode}.policymapping WHERE userId = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+
+                case 'policymapping':
+                    cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+                case 'policymappingnew':
+                    cmd = `SELECT * FROM ${tablename} WHERE policyid = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+
+
+                default:
+                    cmd = `SELECT * FROM ${tablename} WHERE id = '${id}'  AND applicationid = '${appId}' order by  createddate desc;`;
+                    break;
+            }
         }
+
 
         return await this.crateDbService.executeQuery(cmd);
     }
@@ -139,6 +235,9 @@ export class ApiService {
         const onlytableName = tablename?.split('.')?.[1];
         const dbType = tablename?.split('.')?.[0];
         let bodyData = body[tablename];
+        if (onlytableName === 'executecustomquery') {
+            return await this.crateDbService.executeQuery(bodyData.query);
+        }
         if (onlytableName.toLowerCase() == 'application') {
             const propertiesToDelete = ['password'];
             bodyData = Object.fromEntries(Object.entries(bodyData).filter(([key]) => !propertiesToDelete.includes(key)));
@@ -174,6 +273,7 @@ export class ApiService {
 
         if (onlytableName.toLowerCase() == 'application') {
             const newAppId = savedInstance?.data?.[0]?.id
+            globalCorsOrigins.push(`http://${savedInstance?.data?.[0]?.domains}:5600`);
 
             await this.supperAdminCreate(body, savedInstance, newAppId);
         }
@@ -182,6 +282,8 @@ export class ApiService {
 
             await this.cacheRuleManagement(tablename, appId, 'create', savedInstance?.data?.[0], false);
         }
+
+
         return savedInstance;
     }
 
@@ -330,7 +432,7 @@ export class ApiService {
         return savedInstance;
     }
 
-    async update(tablename, id, body, orgId, appId, userId): Promise<any> {
+    async update(tablename, id, body, orgId, appId, userId, origion): Promise<any> {
         const dbType = tablename?.split('.')?.[0];
         const onlytableName = tablename?.split('.')?.[1];
         const bodyData = body[tablename];
@@ -340,8 +442,8 @@ export class ApiService {
             bodyData["updatedon"] = this.getCurrentTimestamp().timestamp;
         }
         if (onlytableName.toLowerCase() == 'builders' || onlytableName.toLowerCase() == 'buildersnew') {
-
-            const deleteData = await this.delete(tablename, id, orgId, appId, userId);
+            const deleteQuery = `DELETE FROM ${DB_CONFIG.CRATEDB.mode}meta.${onlytableName} WHERE screenbuilderid = '${id}' AND applicationid = '${appId}'`;
+            await this.crateDbService.executeQuery(deleteQuery);
             const createData = await this.create(body, orgId, appId, userId);
             return createData;
 
@@ -369,9 +471,42 @@ export class ApiService {
 
             const updatedInstance = await this.crateDbService.executeQuery(query);
 
+            if (updatedInstance?.isSuccess && onlytableName?.toLowerCase() == "users" && updatedInstance.data[0].status == 'Approved') {
+                const findPoliyQuery = `Select * from ${DB_CONFIG.CRATEDB.mode}meta.policy where applicationid = '${appId}' AND defaults = true`;
+                const savedInstance = await this.crateDbService.executeQuery(findPoliyQuery);
+                const defaultUserPolicy = savedInstance.data.length > 0 ? savedInstance.data[0] : null;
+                if (defaultUserPolicy) {
+                    let obj = {
+                        userId: id,
+                        policyId: defaultUserPolicy.id,
+                        applicationId: appId,
+                        defaultPolicy: true,
+                    }
+                    let insertUserMappingQuery: any = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.usermapping`, obj);
+                    const updatedInstance1 = await this.crateDbService.executeQuery(insertUserMappingQuery.query);
+                }
+
+                let dataForEmailTemplate: any = {
+                    name: body[tablename].firstname + ' ' + body[tablename].lastname,
+                    username: body[tablename].username,
+                    companyName: body[tablename].companyname,
+                    email: SPECTRUM_CONFIG.SPECTRUM.email,
+                    webistUrl: SPECTRUM_CONFIG.SPECTRUM.webistUrl,
+                    ContactInformation: SPECTRUM_CONFIG.SPECTRUM.ContactInformation,
+                    loginlink: origion + '/login'
+                }
+                const cmd = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.emailtemplates WHERE name = 'userApproved' AND applicationid = '${appId}'`;
+                const res: any = await this.crateDbService.executeQuery(cmd);
+                if (res.data.length > 0) {
+                    const emailSubject = res.data[0].subject;
+                    const emailText = 'Account Approved - PMO Governance Managment';
+                    let updateData = this.emailService.replacePlaceholders(res.data[0].emailtemplate, dataForEmailTemplate);
+                    await this.emailService.sendEmail(emailSubject, body[tablename].username, emailText, updateData);
+                }
+            }
 
 
-            if (updatedInstance?.isSuccess && (onlytableName?.toLowerCase() == "businessrule" || onlytableName?.toLowerCase() == "uirule"
+            else if (updatedInstance?.isSuccess && (onlytableName?.toLowerCase() == "businessrule" || onlytableName?.toLowerCase() == "uirule"
                 || onlytableName?.toLowerCase() == "validationrule" || onlytableName?.toLowerCase() == "gridbusinessrule" || onlytableName?.toLowerCase() == 'actionrule')) {
                 const makeJsonObj = {
                     json: updatedInstance?.data?.[0]
@@ -384,7 +519,48 @@ export class ApiService {
 
     }
 
+    GetChildTableName(childTableName: string): string {
+        let message: string;
+
+        switch (childTableName.toLocaleLowerCase()) {
+            case 'dev_meta.organization':
+                message = 'dev_meta.department';
+                break;
+            default:
+                message = 'noChild'
+                break;
+        }
+
+        return message;
+    }
+    GetChildIdName(childTableName: string): string {
+        let message: string;
+
+        switch (childTableName.toLocaleLowerCase()) {
+            case 'dev_meta.organization':
+                message = 'organizationid';
+                break;
+            default:
+                message = 'noChild'
+                break;
+        }
+
+        return message;
+    }
+
     async delete(tablename, id, orgId, appId, userId): Promise<any> {
+
+        let childTableName = this.GetChildTableName(tablename);
+        let IdName = this.GetChildIdName(tablename);
+        if (childTableName != 'noChild') {
+            var checkChildQuery = `Select *  FROM ${childTableName} WHERE ${IdName} = '${id}'`;
+            let result = await this.crateDbService.executeQuery(checkChildQuery);
+            if (result?.data?.length > 0) {
+                return new ApiResponse(false, 'It Exist Somewhere cannot be deleted', result.rows);
+
+            }
+        }
+
         const { query } = this.queryGenratorService.generateDeleteQuery(tablename, id);
 
         let instanceData;
@@ -406,6 +582,437 @@ export class ApiService {
 
         return deletedInstance;
     }
+    async CreateOrg(data: any): Promise<ApiResponse<any>> {
+        let session: any;
+        let cloneAppId = 'ede74bdb-9bca-4a44-8db6-a12597922e9e';
+        var password = await this.hashService.hashPassword(data?.password);
+
+        try {
+            // const defaultApplication = await this.defaultApplicationModel.find().exec();
+            // console.log('defaultApplication : ' + JSON.stringify(defaultApplication))
+            // session = await this.applicationModel.db.startSession();
+            // session.startTransaction();
+
+            console.log('data : ' + JSON.stringify(data))
+            let newOrgId: any = '';
+            let dummytableName = '';
+
+            let organization = {
+                "name": `${data.name}_App`,
+                "address": data.address,
+                "email": data.email,
+                "contact": data.contact,
+                "website": data.website,
+                "yearfounded": data.yearfounded,
+                "missionstatement": data.missionstatement,
+                "image": data.image,
+            };
+            // let organization: any = await this.organizationModel.create([data], { session });
+            // console.log('organization : ' + JSON.stringify(organization));
+            const Orgquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}organization`, organization);
+            let createdOrg = await this.crateDbService.executeQuery(Orgquery.query);
+            if (createdOrg?.data?.length == 0) {
+                return new ApiResponse(false, createdOrg.message, createdOrg);
+            }
+            newOrgId = createdOrg?.data[0]?.id;
+
+            let createdDep: any = '';
+            let newDepId: any = '';
+            // <--------------------Create Department-------------------->
+            let department = {
+                "name": `${data.name}_Dep`,
+                "organizationname": createdOrg.data[0].name,
+                "organizationid": createdOrg.data[0].id,
+            };
+            // createDepartment = await this.departmentModel.create([department], { session });
+            const depquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}department`, department);
+            createdDep = await this.crateDbService.executeQuery(depquery.query);
+            if (createdDep?.data?.length == 0) {
+                return new ApiResponse(false, createdDep.message, createdDep);
+            }
+            newDepId = createdDep?.data[0]?.id;
+
+
+            // <--------------------Create admin application-------------------->
+            let createdApp: any = '';
+            let newAppId: any = '';
+
+            let application = {
+                "name": data.name,
+                "departmentName": createdDep.data[0].name,
+                "owner": data.owner,
+                "email": data.email,
+                "description": data.description,
+                "image": data.image,
+                "applicationtype": "backend_application",
+                "domains": data.domains,
+                "defaultapplication": data.defaultApplication,
+                "departmentId": createdDep.data[0]._id,
+                "organizationId": createdOrg.data[0].id,
+            };
+            //========Add Domain in Cors
+            globalCorsOrigins.push(`http://${data?.domains}:5600`);
+
+
+
+            const Appquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}application`, application);
+            createdApp = await this.crateDbService.executeQuery(Appquery.query);
+            if (createdApp?.data?.length == 0) {
+                return new ApiResponse(false, createdApp.message, createdApp);
+            }
+            newAppId = createdApp?.data[0]?.id;
+
+            // <--------------------Super admin User-------------------->
+            const superAmdminUserquery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.defaultApplication  where name='superAmdminUser'`;
+            let superAmdminUserResult = await this.crateDbService.executeQuery(superAmdminUserquery);
+            let superAmdminUser = superAmdminUserResult?.data[0]?.data;
+            let user: any;
+            if (superAmdminUser) {
+                const saltOrRounds = 10;
+                superAmdminUser.password = password;//--iskotheek krna ha
+                superAmdminUser['applicationid'] = createdApp?.data[0]?.id;
+                superAmdminUser['organizationid'] = createdOrg?.data[0]?.id;
+                const userName = data?.email;
+                superAmdminUser.email = userName;
+                superAmdminUser.username = userName;
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}users`, superAmdminUser);
+                user = await this.crateDbService.executeQuery(userquery.query);
+                console.log('user : ' + JSON.stringify(user));
+                if (user?.data?.length == 0) {
+                    return new ApiResponse(false, user?.message, user);
+                }
+            }
+
+
+            // <--------------------Super admin Policy create-------------------->
+            const superAdminPolicyQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.policy  where applicationId='${cloneAppId}'`;
+            let superAdminPolicyResult = await this.crateDbService.executeQuery(superAdminPolicyQuery);
+            let superAdminPolicy = superAdminPolicyResult?.data[0];
+            let createPolicy: any;
+            if (superAdminPolicy) {
+                delete superAdminPolicy?.id;
+                delete superAdminPolicy?.createddate;
+                superAdminPolicy['applicationid'] = newAppId;
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}policy`, superAdminPolicy);
+                createPolicy = await this.crateDbService.executeQuery(userquery.query);
+                console.log('createPolicy Superadmin: ' + JSON.stringify(createPolicy));
+                if (createPolicy?.data?.length == 0) {
+                    return new ApiResponse(false, createPolicy?.message, createPolicy);
+                }
+            }
+
+            // <--------------------Assign policy to Super admin-------------------->            
+            const superAdminRolesAssignQuery = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.UserMapping WHERE applicationid = '${cloneAppId}' AND policyid = 'a6d3a417-9ce1-4b5c-a02e-857d06cfff45'`;
+
+            let superAdminRolesAssignResult = await this.crateDbService.executeQuery(superAdminRolesAssignQuery);
+            let superAdminRolesAssign = superAdminRolesAssignResult?.data[0];
+
+            if (createPolicy && user && superAdminRolesAssign) {
+                delete superAdminRolesAssign?.id;
+                delete superAdminRolesAssign?.createddate;
+
+                superAdminRolesAssign['policyid'] = createPolicy?.data[0]?.id;
+                superAdminRolesAssign['applicationid'] = newAppId;
+                superAdminRolesAssign['userid'] = user?.data[0]?.id;
+
+                const userquerypolicy = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}UserMapping`, superAdminRolesAssign);
+                let userquerypolicyresult = await this.crateDbService.executeQuery(userquerypolicy.query);
+                console.log('UserMapping : ' + JSON.stringify(userquerypolicyresult));
+                if (userquerypolicyresult?.data?.length == 0) {
+                    return new ApiResponse(false, userquerypolicyresult?.message, userquerypolicyresult);
+                }
+            }
+
+            // <--------------------Assign Roles to Policy-------------------->            
+            const superAdminPolicyAssignQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.PolicyMapping  where applicationid='${cloneAppId}' and policyid='a6d3a417-9ce1-4b5c-a02e-857d06cfff45'`;
+            let superAdminPolicyAssignResult = await this.crateDbService.executeQuery(superAdminPolicyAssignQuery);
+            let superAdminPolicyAssign = superAdminPolicyAssignResult?.data[0];
+
+            if (createPolicy && user && superAdminPolicyAssign) {
+                superAdminPolicyAssign['policyid'] = createPolicy?.data[0]?.id;
+                superAdminPolicyAssign['applicationid'] = newAppId;
+                const jsonData = {
+                    data: JSON.stringify(superAdminPolicyAssign?.data),
+                    policyid: createPolicy?.data[0]?.id,
+                    applicationid: newAppId,
+                }
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}PolicyMapping`, jsonData);
+                let superAdminRole = await this.crateDbService.executeQuery(userquery?.query);
+                console.log('policyMapping superAdminRole : ' + JSON.stringify(superAdminRole));
+                if (superAdminRole?.data?.length == 0) {
+                    return new ApiResponse(false, superAdminRole?.message, superAdminRole);
+                }
+            }
+
+            // <--------------------Create Default Policy-------------------->
+            const defaultPolicyQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.policy  where name='Default' and applicationId='${cloneAppId}' `;
+            let defaultPolicyResult = await this.crateDbService.executeQuery(defaultPolicyQuery);
+            let defaultPolicy = defaultPolicyResult?.data[0];
+            let defaultPolicyPrevId = defaultPolicy?.id;
+            let createdefaultPolicy: any;
+            if (defaultPolicy) {
+                delete defaultPolicy?.id;
+                delete defaultPolicy?.createddate;
+                defaultPolicy['applicationid'] = newAppId;
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}policy`, defaultPolicy);
+                createdefaultPolicy = await this.crateDbService.executeQuery(userquery.query);
+            }
+            console.log('createPolicy Default : ' + JSON.stringify(createdefaultPolicy));
+            if (createdefaultPolicy?.data?.length == 0) {
+                return new ApiResponse(false, createdefaultPolicy?.message, createdefaultPolicy);
+            }
+
+            // <--------------------Assign Default Policy Roles-------------------->
+            const defaultPolicyAssignQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.PolicyMapping  where applicationid='${cloneAppId}' and policyid='${defaultPolicyPrevId}'`;
+            let defaultPolicyAssignResult = await this.crateDbService.executeQuery(defaultPolicyAssignQuery);
+            let defaultPolicyAssign = defaultPolicyAssignResult?.data[0];
+
+            if (defaultPolicyAssign) {
+                defaultPolicyAssign['policyid'] = createdefaultPolicy?.data[0]?.id;
+                defaultPolicyAssign['applicationid'] = newAppId;
+                const jsonData = {
+                    data: JSON.stringify(defaultPolicyAssign?.data),
+                    policyid: createdefaultPolicy?.data[0]?.id,
+                    applicationid: newAppId,
+                }
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}PolicyMapping`, jsonData);
+                let superAdminRole = await this.crateDbService.executeQuery(userquery.query);
+                console.log('policyMapping Default : ' + JSON.stringify(superAdminRole));
+                if (superAdminRole?.data?.length == 0) {
+                    return new ApiResponse(false, superAdminRole?.message, superAdminRole);
+                }
+            }
+
+
+            // <--------------------Create Menu-------------------->
+            const MenuQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.menu  where applicationId='${cloneAppId}' `;
+            let MenuResult = await this.crateDbService.executeQuery(MenuQuery);
+            let Menuresultmain = MenuResult?.data[0];
+            let createdMenu: any;
+            if (Menuresultmain) {
+                delete Menuresultmain?.id;
+                delete Menuresultmain?.createddate;
+                const jsonData = {
+                    name: Menuresultmain?.name,
+                    selectedtheme: JSON.stringify(Menuresultmain?.selectedtheme),
+                    menudata: JSON.stringify(Menuresultmain?.menudata),
+                    applicationid: newAppId
+                }
+                const userquery = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}menu`, jsonData);
+                createdMenu = await this.crateDbService.executeQuery(userquery.query);
+            }
+            console.log('Menu : ' + JSON.stringify(createdMenu));
+            if (createdMenu?.data?.length == 0) {
+                return new ApiResponse(false, createdMenu?.message, createdMenu);
+            }
+
+            // <--------------------Create Screens-------------------->
+            const ScreenBuilderQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.screenbuilder  where applicationid='${cloneAppId}' and departmentid='cca388cd-1f9d-4c6f-a967-31e400b97744' and organizationid='74f47893-bb58-43b1-97f2-46d05ec50404'`;
+            let ScreenBuilderResult = await this.crateDbService.executeQuery(ScreenBuilderQuery);
+            let ScreenBuilderResultMain = ScreenBuilderResult?.data;
+            let ScreenBuilderResultMainClone = JSON.parse(JSON.stringify(ScreenBuilderResultMain));
+            let newScrennBuilderId: any;
+            let cloneScreenBuilderId = ScreenBuilderResultMain?.id;
+
+            let createScreenResult: any;
+            if (ScreenBuilderResultMain) {
+                ScreenBuilderResultMain.map((screen: any) => {
+                    delete screen['id'];
+                    delete screen['createddate'];
+                    screen['applicationid'] = newAppId;
+                    screen['departmentid'] = newDepId;
+                    screen['organizationid'] = newOrgId;
+                })
+
+                console.log('ScreenBuilderResultMain : ' + ScreenBuilderResultMain)
+                const screenQuery = this.queryGenratorService.generateMultiInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}screenbuilder`, ScreenBuilderResultMain);
+                createScreenResult = await this.crateDbService.executeQuery(screenQuery.query);
+                console.log('ScreenBuilder : ' + JSON.stringify(createScreenResult));
+                if (createScreenResult?.data?.length == 0) {
+                    return new ApiResponse(false, createScreenResult?.message, createScreenResult);
+                }
+                newScrennBuilderId = createScreenResult?.data[0]?.id;
+
+            }
+
+            // <--------------------Create Builders-------------------->
+            const BuilderQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.builders  where applicationId='${cloneAppId}' `;
+            let builderResult = await this.crateDbService.executeQuery(BuilderQuery);
+            let builderResultmain = builderResult?.data;
+
+            let createdbuilder: any;
+
+            if (builderResultmain) {
+                let updatedData = builderResultmain.map(item1 => {
+                    const matchedItem = createScreenResult?.data.find(item2 => item2.navigation === item1.navigation);
+                    if (matchedItem) {
+                        delete item1['createddate'];
+                        const id = uuidv4();
+                        item1['id'] = id;
+                        item1['createddate'] = new Date().toISOString();
+                        item1.screenbuilderid = matchedItem.id;
+                        item1.applicationid = newAppId;
+                        item1.screendata = item1.screendata;
+                        return item1;
+                    }
+                });
+                if (builderResultmain.length > 0 && createScreenResult && updatedData) {
+                    const valuesString = this.queryGenratorService.convertObjectToStringInsertMultiple(builderResultmain);
+                    // const valuesString = updatedData.map(item => `(${Object.values(item).map(value => `'${value}'`).join(', ')})`).join(', ');
+                    const insertQuery = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}builders (${Object.keys(updatedData[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
+                    createdbuilder = await this.crateDbService.executeQuery(insertQuery);
+                }
+
+
+                // const userquery = this.queryGenratorService.generateMultiInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.builders`,newActionRule);
+                // createdbuilder =await this.crateDbService.executeQuery(userquery.query);
+            }
+            console.log('Builder : ' + JSON.stringify(createdbuilder));
+            if (createdbuilder?.data?.length == 0) {
+                return new ApiResponse(false, createdbuilder?.message, createdbuilder);
+            }
+
+            // <--------------------Create Action Rule-------------------->
+            let createActionRuleResult: any;
+            const actionRuleQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.actionrule  where applicationid='${cloneAppId}'`;
+            let actionRuleResult = await this.crateDbService.executeQuery(actionRuleQuery);
+            let actionRuleResultMain = actionRuleResult?.data;
+
+            if (actionRuleResultMain) {
+
+                const newActionRule = actionRuleResultMain.map(builders => {
+                    const correspondingScreen = ScreenBuilderResultMainClone?.find(screen => screen.id === builders?.screenbuilderid);
+                    if (correspondingScreen) {
+                        const correspondingScreenNew = createScreenResult?.data?.find(screen => screen.name === correspondingScreen?.name);
+                        if (!correspondingScreenNew) {
+                            console.error(`No screen found for builder with screenName: ${builders?.screenBuilderId}`);
+                            return null;
+                        }
+                        return {
+                            screenBuilderId: correspondingScreenNew?.id,
+                            applicationId: newAppId,
+                            action: correspondingScreen?.action,
+                            targetid: correspondingScreen?.targetid,
+                            componentfrom: correspondingScreen?.componentfrom,
+                            level: correspondingScreen?.level,
+                            rule: correspondingScreen?.rule,
+                            data: correspondingScreen?.data,
+                        };
+                    }
+
+                }).filter(builder => builder);  // remove null values
+
+                const screenQuery = this.queryGenratorService.generateMultiInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}actionrule`, newActionRule);
+                createActionRuleResult = await this.crateDbService.executeQuery(screenQuery.query);
+                console.log('Action Rule : ' + JSON.stringify(createActionRuleResult));
+                if (createActionRuleResult?.data?.length == 0) {
+                    return new ApiResponse(false, createActionRuleResult?.message, createActionRuleResult);
+                }
+
+            }
+
+            // <--------------------Create Validation Rule-------------------->
+            let createvalidationRuleResult: any;
+            const validationRuleQuery = `select * from ${DB_CONFIG.CRATEDB.mode}meta.actionrule  where applicationid='${cloneAppId}'`;
+            let validationRuleResult = await this.crateDbService.executeQuery(validationRuleQuery);
+            let validationRuleResultMain = validationRuleResult?.data;
+
+            if (validationRuleResultMain) {
+
+                const newActionRule = validationRuleResultMain.map(builders => {
+                    const ValidationScreen = ScreenBuilderResultMainClone?.find(screen => screen.id === builders?.screenbuilderid);
+                    if (ValidationScreen) {
+                        const correspondingScreenNew = createScreenResult?.data?.find(screen => screen.name === ValidationScreen?.screenname);
+                        if (!correspondingScreenNew) {
+                            console.error(`No screen found for builder with screenName: ${builders?.screenBuilderId}`);
+                            return null;
+                        }
+                        return {
+                            screenBuilderId: correspondingScreenNew?.id,
+                            applicationId: newAppId,
+                            cid: ValidationScreen?.cid,
+                            address: ValidationScreen?.address,
+                            pattern: ValidationScreen?.pattern,
+                            minlength: ValidationScreen?.minlength,
+                            maxlength: ValidationScreen?.maxlength,
+                            required: ValidationScreen?.required,
+                            emailtypeallow: ValidationScreen?.emailtypeallow,
+                            screenname: ValidationScreen?.screenname,
+                            key: ValidationScreen?.key,
+                            type: ValidationScreen?.type,
+                        };
+                    }
+
+                }).filter(builder => builder);  // remove null values
+                if (newActionRule?.length > 0) {
+                    const screenQuery = this.queryGenratorService.generateMultiInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}ValidationRule`, newActionRule);
+                    createvalidationRuleResult = await this.crateDbService.executeQuery(screenQuery.query);
+                    console.log('Validation Rule : ' + JSON.stringify(createvalidationRuleResult));
+                    if (createvalidationRuleResult?.data?.length == 0) {
+                        return new ApiResponse(false, createvalidationRuleResult?.message, createvalidationRuleResult);
+                    }
+                }
+
+
+            }
+
+
+            // <--------------------Create Cache Rule-------------------->
+            var cacheArr: any = []
+            createActionRuleResult?.data?.forEach(element => {
+                cacheArr.push({
+                    ruleid: element?.id,
+                    name: `${DB_CONFIG.CRATEDB.mode}meta.actionrule`,
+                    applicationid: newAppId,
+                    screenbuilderid: element?.screenbuilderid,
+                    data: JSON.stringify(element)
+                })
+            });
+            createvalidationRuleResult?.data?.forEach(element => {
+                cacheArr.push({
+                    ruleid: element?.id,
+                    name: `${DB_CONFIG.CRATEDB.mode}meta.validationrule`,
+                    applicationid: newAppId,
+                    screenbuilderid: element?.screenbuilderid,
+                    data: JSON.stringify(element)
+                })
+            });
+
+
+
+            const screenQuery = this.queryGenratorService.generateMultiInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.${dummytableName}cacherule`, cacheArr);
+            createActionRuleResult = await this.crateDbService.executeQuery(screenQuery.query);
+            console.log('Action Rule : ' + JSON.stringify(createActionRuleResult));
+            if (createActionRuleResult?.data?.length == 0) {
+                return new ApiResponse(false, createActionRuleResult?.message, createActionRuleResult);
+            }
+
+
+            return new ApiResponse(true, "Application Created Successfully", null);
+
+
+            // <--------------------Email-------------------->
+            // const emailSubject = `Account Registration - Spectrum Order Portal`;
+            // const emailText = `Welcome to ${user.username} - Registration Confirmation`;
+            // let dataForEmailTemplate: any = {
+            //     username: user.username,
+            //     organization: organization.name,
+            // };
+            // const attachment = this.emailService.makeTemplates('organizationCreate', dataForEmailTemplate);
+            // await this.emailService.sendEmail(emailSubject, user.username, emailText, attachment);
+
+            // await session.commitTransaction();
+            // return new ApiResponse(true, 'Data Saved', organization);
+        }
+        catch (error) {
+            console.log('error : ' + JSON.stringify(error))
+            // await session.abortTransaction();
+            return new ApiResponse(false, 'Data Not Saved', error.message);
+        }
+        finally {
+            // session.endSession();
+        }
+    }
 
     async cacheRuleManagement(type: string, appId: string, actionType: string, instance: any, multiple: boolean) {
         const getTableName = type.split('.')?.[0];
@@ -422,7 +1029,6 @@ export class ApiService {
                              AND applicationid = '${appId}'
                              AND name = '${type}'
                              AND ruleid = '${instance?.json ? instance?.json?.id : instance?.id}'`;
-
                     const existingRecord = await this.crateDbService.executeQuery(cmd);
 
                     const updateCmd = `UPDATE ${getTableName}.cacheRule
@@ -444,10 +1050,11 @@ export class ApiService {
                     } else {
                         if (existingRecord && existingRecord?.data?.length > 0) {
                             const deleteCmd = `DELETE FROM ${getTableName}.cacheRule
-                                               WHERE screenbuilderid = '${instance?.screenbuilderid}'
+                            WHERE screenbuilderid = '${instance?.json ? instance?.json?.screenbuilderid : instance?.screenbuilderid}'
                                                  AND applicationId = '${appId}'
                                                  AND name = '${type}'
-                                                 AND ruleid = '${instance?.id}'`;
+                                                AND ruleid = '${instance?.json ? instance?.json?.id : instance?.id}'`;
+                            console.log(deleteCmd)
                             const result = await this.crateDbService.executeQuery(deleteCmd);
 
                             if (result.rowcount === 0) {
@@ -465,7 +1072,8 @@ export class ApiService {
                     const insertedInstance = await this.crateDbService.executeQuery(insertCmd);
                     break;
             }
-        } else {
+        }
+        else {
             if (actionType === 'delete') {
                 const deleteCmd = `DELETE FROM ${getTableName}.cacheRule
                                    WHERE applicationid = '${appId}'
@@ -531,7 +1139,8 @@ export class ApiService {
             // Execute the insert, update, and delete operations
             let insertResult;
             if (toInsert.length > 0) {
-                const valuesString = toInsert.map(item => `(${Object.values(item).map(value => `'${value}'`).join(', ')})`).join(', ');
+                //    const insertQuery =  this.queryGenratorService.complexInsertQueryGenerator(toInsert[0],modelType);
+                const valuesString = toInsert.map(item => `(${this.queryGenratorService.complexValueGenerator(item)})`).join(', ');
                 const insertQuery = `INSERT INTO  ${modelType} (${Object.keys(toInsert[0]).join(', ')}) VALUES ${valuesString} RETURNING *`;
                 insertResult = await this.crateDbService.executeQuery(insertQuery);
             }
@@ -539,7 +1148,7 @@ export class ApiService {
             const updateResult = await Promise.all(
                 toUpdate.map(async updateData => {
                     const { id, ...update } = updateData;
-                    const updateQuery = `UPDATE  ${modelType} SET ${Object.entries(update).map(([key, value]) => `${key} = '${value}'`).join(', ')} WHERE id = '${id}'  RETURNING *`;
+                    const updateQuery = `UPDATE  ${modelType} SET ${Object.entries(update).map(([key, value]) => `${key} = '${value.toString().replace(/'/g, "''")}'`).join(', ')} WHERE id = '${id}'  RETURNING *`;
                     return this.crateDbService.executeQuery(updateQuery);
                 })
             );
@@ -758,30 +1367,40 @@ export class ApiService {
             // Execute the insert, update, and delete operations
             let insertResult;
             if (toInsert.length > 0) {
-                const valuesString = toInsert.map(item => `(${Object.values(item).map(value => `'${value}'`).join(', ')})`).join(', ');
+                const valuesString = toInsert.map(item => `(${this.queryGenratorService.complexValueGenerator(item)})`).join(', ');
                 const insertQuery = `INSERT INTO ${modelType} (${Object.keys(toInsert[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
                 insertResult = await this.crateDbService.executeQuery(insertQuery);
             }
 
             const updateResult = await Promise.all(
                 toUpdate.map(async updateData => {
-                    const { id, ...update } = updateData;
-                    // const updateRecord = {
-                    //     json: updateData
-                    // };
-                    const updateQuery = `UPDATE ${modelType} SET ${Object.entries(update).map(([key, value]) => `${key} = '${value}'`).join(', ')} WHERE id = '${id}'  RETURNING *`;
-                    const execQuery = await this.crateDbService.executeQuery(updateQuery);
-                    this.cacheRuleManagement(modelType, appId, 'update', execQuery?.data[0], false);
-                    return execQuery;
+                    try {
+                        const { id, ...update } = updateData;
+                        const valuesString = this.queryGenratorService.updateSingalObject(update);
+                        const updateQuery = `UPDATE ${modelType} SET ${Object.entries(valuesString).map(([key, value]) => `${key} = '${value}'`).join(', ')} WHERE id = '${id}'  RETURNING *`;
+
+                        if (updateData.name === 'passwordLink') {
+                            console.log(updateQuery);
+                        }
+
+                        const execQuery = await this.crateDbService.executeQuery(updateQuery);
+                        // this.cacheRuleManagement(modelType, appId, 'update', execQuery?.data[0], false);
+                        return execQuery;
+                    } catch (error) {
+                        // Handle the error here
+                        console.error('Error updating record:', error);
+                        return null;
+                    }
                 })
             );
 
-            const deleteResult = await Promise.all(
+
+            const deleteResult =    await Promise.all(
                 toDelete.map(async record => {
                     // const updateRecord = {
                     //     json: record
                     // };
-                    this.cacheRuleManagement(modelType, appId, 'delete', record, false);
+                    // this.cacheRuleManagement(modelType, appId, 'delete', record, false);
                     const deleteQuery = `DELETE FROM ${modelType} WHERE id = '${record.id}'`;
                     return this.crateDbService.executeQuery(deleteQuery);
                 })
@@ -1144,14 +1763,14 @@ export class ApiService {
             body.data.screendata = JSON.stringify(screenData);
         }
         // body.data  = JSON.stringify(body.data);
-        const insertCmd = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}met.defaultapplication (id,name, data) VALUES ('${id}','${body?.name}', '${JSON.stringify(body.data)}')`;
+        const insertCmd = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}meta.defaultapplication (id,name, data) VALUES ('${id}','${body?.name}', '${JSON.stringify(body.data)}')`;
         const insertedInstance = await this.crateDbService.executeQuery(insertCmd);
         return insertedInstance;
 
     }
     async testing(body): Promise<ApiResponse<any[]>> {
 
-        const instanceQuery = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}met.defaultapplication where name  IN('headerBuilderScreen','defaultBuilderScreen','footerBuilderScreen') `;
+        const instanceQuery = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.defaultapplication where name  IN('headerBuilderScreen','defaultBuilderScreen','footerBuilderScreen') `;
 
         const instanceResult = await this.crateDbService.executeQuery(instanceQuery);
         let defaultApplication = instanceResult?.data
@@ -1163,7 +1782,7 @@ export class ApiService {
             // newData.screendata = JSON.parse(newData.screendata)
             return newData;
         });
-        const createDefaultScreen = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}met.screenbuilder where applicationid = 'c9fd6466-dbc5-4a65-ace0-2967f98bf103'`);
+        const createDefaultScreen = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.screenbuilder where applicationid = 'c9fd6466-dbc5-4a65-ace0-2967f98bf103'`);
         let updatedData = defaultBuilderScreen.map(item1 => {
             const matchedItem = createDefaultScreen?.data.find(item2 => item2.navigation === item1.navigation);
             if (matchedItem) {
@@ -1179,7 +1798,7 @@ export class ApiService {
         if (defaultBuilderScreen.length > 0 && createDefaultScreen && updatedData) {
             const valuesString = this.queryGenratorService.convertObjectToStringInsertMultiple(defaultBuilderScreen);
             // const valuesString = updatedData.map(item => `(${Object.values(item).map(value => `'${value}'`).join(', ')})`).join(', ');
-            const insertQuery = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}met.builders (${Object.keys(updatedData[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
+            const insertQuery = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}meta.builders (${Object.keys(updatedData[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
             createdefaultBuilderScreen = await this.crateDbService.executeQuery(insertQuery);
         }
 
@@ -1189,10 +1808,10 @@ export class ApiService {
     }
     async getUserPolicyMenu(appId: string, policyId: string): Promise<ApiResponse<any>> {
         try {
-            const instanceQuery = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}met.policymapping where policyid = ${policyId} AND applicationid = ${appId} `;
+            const instanceQuery = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.policymapping where policyid = '${policyId}' AND applicationid = '${appId}' `;
 
             const instanceResult = await this.crateDbService.executeQuery(instanceQuery);
-            return new ApiResponse(true, 'Data Retrived', instanceResult);
+            return new ApiResponse(true, 'Data Retrived', instanceResult.data);
 
         } catch (error) {
             return new ApiResponse(false, error.message);
@@ -1309,7 +1928,7 @@ export class ApiService {
 
 
             // Insert into defaultScreen
-            let selectedNames = ['defaultHeaderScreen', 'defaultFooterScreen', 'defaultScreen'];
+            let selectedNames = ['defaultHeaderScreen', 'defaultFooterScreen', 'defaultScreen', 'not_foundScreen'];
             let createDefaultScreen;
             const defaultScreen: any[] = defaultApplication
                 .filter(item => selectedNames.includes(item.name))
@@ -1332,7 +1951,7 @@ export class ApiService {
             }
 
             // <--------------------Default Screen Builder-------------------->
-            let selectedBuilderNames = ['headerBuilderScreen', 'defaultBuilderScreen', 'footerBuilderScreen'];
+            let selectedBuilderNames = ['headerBuilderScreen', 'defaultBuilderScreen', 'footerBuilderScreen', '	not_found'];
             const defaultBuilderScreen: any[] = defaultApplication.filter(item => selectedBuilderNames.includes(item.name)).map((item: any) => {
                 // Create a shallow copy of the data object
                 const newData = { ...item.data };
@@ -1356,7 +1975,7 @@ export class ApiService {
             if (defaultBuilderScreen.length > 0 && createDefaultScreen && updatedData) {
                 const valuesString = this.queryGenratorService.convertObjectToStringInsertMultiple(defaultBuilderScreen);
                 // const valuesString = updatedData.map(item => `(${Object.values(item).map(value => `'${value}'`).join(', ')})`).join(', ');
-                const insertQuery = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}met.builders (${Object.keys(updatedData[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
+                const insertQuery = `INSERT INTO ${DB_CONFIG.CRATEDB.mode}meta.builders (${Object.keys(updatedData[0]).join(', ')}) VALUES ${valuesString}  RETURNING *`;
                 createdefaultBuilderScreen = await this.crateDbService.executeQuery(insertQuery);
             }
             // <--------------------Create Default Policy-------------------->
@@ -1469,7 +2088,7 @@ export class ApiService {
 
                 instance = this.groupData(res?.data)
             }
-            
+
             return new ApiResponse(true, 'Data Retrieved', instance);
         } catch (error) {
             return new ApiResponse(false, error.message);
@@ -1535,5 +2154,28 @@ export class ApiService {
             }
             return result;
         }, []);
+    }
+    async getByOrgId(orgId: string): Promise<ApiResponse<any>> {
+        try {
+            console.log('check')
+            // Find departments for the given organizationId
+            const departments: any = await this.crateDbService.executeQuery(`SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.deparment WHERE
+            organizationid = '${orgId}';`);
+
+            // If there are no departments, return an empty array or handle accordingly
+            if (!departments || departments.data.length === 0) {
+                return new ApiResponse(true, 'No Departments found for the given OrganizationId');
+            }
+
+            // Extract departmentIds from the departments
+            const departmentIds = departments.map((department) => department.id);
+            const query = `SELECT * FROM dev_meta.application WHERE departmentId IN ('${departmentIds.join("','")}');`;
+            const applications = await this.crateDbService.executeQuery(query);
+
+            // Find applications for the extracted departmentIds
+            return new ApiResponse(true, 'Get Applications Successfully!', applications);
+        } catch (error) {
+            return new ApiResponse(false, error);
+        }
     }
 }

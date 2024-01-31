@@ -281,7 +281,7 @@ export class EmailController {
             <img src="http://localhost:4500/uploads/Images/Picture3.png" alt="" class="third_img">
         </div>
         <div >
-            <h2>Frequency Spectrum Authorization <span style="float: right;"> حیرصت فیطلا يددرتلا</span> </h2>
+            <h2>Frequency PMO Governance Managment Authorization <span style="float: right;"> حیرصت فیطلا يددرتلا</span> </h2>
     
             <h3>Program Making & Special Events Services <span style="float: right;">يجاتنلإا يف خلا ي ةصاخلا
                     تایلاعفلاوتامدخلاجاتنلإا </span> </h3>

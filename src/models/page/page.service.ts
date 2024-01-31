@@ -7,6 +7,7 @@ import axios, { AxiosRequestConfig } from 'axios';
 import * as fs from 'fs';
 import { DB_CONFIG, SPECTRUM_CONFIG } from 'src/shared/config/global-db-config';
 import { EmailService } from '../email/email.service';
+import { TokenService } from '../token/token.service';
 const { v4: uuidv4 } = require('uuid');
 
 @Injectable()
@@ -15,22 +16,23 @@ export class PageService {
         private queryGenratorService: QueryGenratorService,
         private hashService: HashService,
         private emailService: EmailService,
+        private tokenService: TokenService,
     ) {
 
 
     }
 
-    async executeRules(appId: string, orgId: string, user: string, request: any, policyId: string, screenId: string, screenBuildId: string, ruleId: string, data: any) {
-        return await this.processActionRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data);
+    async executeRules(req, appId: string, orgId: string, user: string, request: any, policyId: string, screenId: string, screenBuildId: string, ruleId: string, data: any, externalLogin: boolean) {
+        return await this.processActionRules(req, appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data, externalLogin);
     }
-    async executeDeleteRules(appId: string, orgId: string, user: string, request: any, policyId: string, screenId: string, screenBuildId: string, ruleId: string, data: any) {
-        return await this.processActionRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data);
+    async executeDeleteRules(req, appId: string, orgId: string, user: string, request: any, policyId: string, screenId: string, screenBuildId: string, ruleId: string, data: any, externalLogin: any) {
+        return await this.processActionRules(req, appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, data, externalLogin);
     }
-    async getexecuteRules(appId: string, orgId: string, user: string, request: string, policyId: string, screenId: string, screenBuildId: string, ruleId: string, parentId?: string, page?: number, pageSize?: number, search?: string, filters?: string) {
-        return await this.processActionRules(appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, '', parentId, page, pageSize, search, filters);
+    async getexecuteRules(req, appId: string, orgId: string, user: string, request: string, policyId: string, screenId: string, screenBuildId: string, ruleId: string, parentId?: string, page?: number, pageSize?: number, search?: string, filters?: string, externalLogin?: boolean) {
+        return await this.processActionRules(req, appId, orgId, user, request, policyId, screenId, screenBuildId, ruleId, '', externalLogin, parentId, page, pageSize, search, filters);
     }
 
-    async processActionRules(appId: string, orgId: string, user: string, request: string, policyId: string, screenId: string, screenBuildId: string, ruleId: string, context?: any, parentId?: string, page?: number, pageSize?: number, search?: string, filters?: string) {
+    async processActionRules(req, appId: string, orgId: string, user: string, request: string, policyId: string, screenId: string, screenBuildId: string, ruleId: string, context?: any, externalLogin?: boolean, parentId?: string, page?: number, pageSize?: number, search?: string, filters?: string) {
 
         console.log("ActionRule : " + JSON.stringify(ruleId));
         const start = new Date().getTime()
@@ -63,14 +65,17 @@ export class PageService {
                 if (actionRule.includes('post_')) {
                     const comparisonFunction = this.getComparisonFunction(compare);
                     if (!checkStaticValue ? comparisonFunction(this.getKeyAssignValue(context, key), value) : checkStaticValue) {
-                        let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
-                        if (!getCurrentPolicy.data) {
-                            return new ApiResponse(false, "You did not have create authority assign of this screen", []);
+                        if (!externalLogin || externalLogin == undefined) {
+                            let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
+                            if (!getCurrentPolicy.data) {
+                                return new ApiResponse(false, "You did not have create authority assign of this screen", []);
+                            }
+                            const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.creates == true);
+                            if (!checkCreateAssign) {
+                                return new ApiResponse(false, "You did not have create authority assign of this screen", []);
+                            }
                         }
-                        const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.creates == true);
-                        if (!checkCreateAssign) {
-                            return new ApiResponse(false, "You did not have create authority assign of this screen", []);
-                        }
+
                         const getActionId = actions.find(a => a.qurytype === actionRule);
                         context['ruleId'] = getActionId?.id;
                         message = await this.saveDb(context, screenBuildId, appId, orgId, request, user, [getActionId]);
@@ -88,7 +93,7 @@ export class PageService {
                                             modalData: message[0]
                                         }
                                         if (thenActionId.type == 'email') {
-                                            await this.sendEmail11(obj, appId, request, thenActionId, user, screenBuildId, actionRule);
+                                            await this.sendEmail11(req, obj, appId, request, thenActionId, user, screenBuildId, actionRule);
                                         } else {
                                             await this.executeDeleteQueries(obj, appId, request, thenActionId, user);
                                         }
@@ -167,8 +172,8 @@ export class PageService {
                 else if (actionRule.includes('get_')) {
                     if (appId == "651fa8129ce5925c4c89ced7") {
                         key = key.replace('$zonekey', `${parentId}`);
-
                     }
+
                     const comparisonFunction = this.getComparisonFunction(compare);
                     if (comparisonFunction(value, key)) {
 
@@ -192,13 +197,15 @@ export class PageService {
                 else if (actionRule.includes('delete_')) {
                     const comparisonFunction = this.getComparisonFunction(compare);
                     if (comparisonFunction(value, key)) {
-                        let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
-                        if (!getCurrentPolicy.data) {
-                            return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
-                        }
-                        const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.delete == true);
-                        if (!checkCreateAssign) {
-                            return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                        if (!externalLogin || externalLogin == undefined) {
+                            let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
+                            if (!getCurrentPolicy.data) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
+                            const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.delete == true);
+                            if (!checkCreateAssign) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
                         }
 
                         const getActionId = actions.find(a => a.qurytype === actionRule);
@@ -209,13 +216,15 @@ export class PageService {
                 else if (actionRule.includes('put_')) {
                     const comparisonFunction = this.getComparisonFunction(compare);
                     if (comparisonFunction(value, key)) {
-                        let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
-                        if (!getCurrentPolicy.data) {
-                            return new ApiResponse(false, "You did not have update authority assign of this screen", []);
-                        }
-                        const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.delete == true);
-                        if (!checkCreateAssign) {
-                            return new ApiResponse(false, "You did not have update authority assign of this screen", []);
+                        if (!externalLogin || externalLogin == undefined) {
+                            let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
+                            if (!getCurrentPolicy.data) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
+                            const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.delete == true);
+                            if (!checkCreateAssign) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
                         }
 
                         const getActionId = actions.find(a => a.qurytype === actionRule);
@@ -241,13 +250,15 @@ export class PageService {
                     if (comparisonFunction(value, key)) {
                         const getActionId = actions.find(a => a.qurytype === actionRule);
                         // console.log('context : ' + context)
-                        let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
-                        if (!getCurrentPolicy.data) {
-                            return new ApiResponse(false, "You did not have update authority assign of this screen", []);
-                        }
-                        const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.creates == true);
-                        if (!checkCreateAssign) {
-                            return new ApiResponse(false, "You did not have update authority assign of this screen", []);
+                        if (!externalLogin || externalLogin == undefined) {
+                            let getCurrentPolicy = await this.getMappingByPolicyIdAppId(policyId, appId, screenId);
+                            if (!getCurrentPolicy.data) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
+                            const checkCreateAssign = getCurrentPolicy?.data?.find(a => a.delete == true);
+                            if (!checkCreateAssign) {
+                                return new ApiResponse(false, "You did not have delete authority assign of this screen", []);
+                            }
                         }
                         const data = await this.executeDeleteQueries(context, appId, request, getActionId, user);
                     }
@@ -281,7 +292,7 @@ export class PageService {
                 }
                 const objData = {
                     "payload": data,
-                    "apiName": getRes.httpAddress,
+                    "apiName": getRes.httpaddress,
                     "contentType": "application/json"
                 }
                 console.log('data.objData ', objData)
@@ -314,6 +325,7 @@ export class PageService {
                 }
                 if (isTableExist) {
                     try {
+                        let innerResult: any = [];
                         for (let i = 0; i < queryData.length; i++) {
                             const queryObj = queryData[i];
                             let query = queryObj.query;
@@ -325,8 +337,9 @@ export class PageService {
 
                             // this one use for schema 
                             const schemaName = 'admin';
-                            query = query.toLowerCase().replace('output inserted.*', ' ')
+                            query = query.toLowerCase().replace('output inserted.*', ' ');
                             query = query.toLowerCase().replace(/insert into (\w+)/, `insert into ${schemaName}.${tableName}`);
+                            query = query.replace('ddmmyy', 'DDMMYY');
 
 
                             const id = uuidv4();
@@ -338,6 +351,8 @@ export class PageService {
                                         populateQueryValues(obj[key], prefix + key + '.');
                                     } else if (key == 'id') {
                                         queryValues['$' + prefix + key] = id;
+                                    } else if (key == 'createdon') {
+                                        queryValues['$' + prefix + key] = new Date().toISOString();
                                     } else {
                                         queryValues['$' + prefix + key] = obj[key];
                                     }
@@ -348,6 +363,8 @@ export class PageService {
                                 console.log('containsArray')
                                 populateQueryValues(modalData);
                                 queryValues[`$${tableName}.id`] = id;
+                                queryValues[`$${tableName}.createdon`] = new Date().toISOString();
+                                modalData[`${tableName}.createdon`] = new Date().toISOString();
                                 for (const [key, value] of Object.entries(queryValues)) {
                                     if (value !== null) {
                                         if (matchingColumn && i != 0) {
@@ -367,6 +384,8 @@ export class PageService {
                             else {
                                 console.log('containsArray1')
                                 queryValues[`$${tableName}.id`] = id;
+                                queryValues[`$${tableName}.createdon`] = new Date().toISOString();
+                                modalData[`${tableName}.createdon`] = new Date().toISOString();
                                 populateQueryValues(modalData);
                                 queryValues = this.transformDynamicNestedData(queryValues, modalData);
 
@@ -412,7 +431,7 @@ export class PageService {
                             if (queryExec.isSuccess == false) {
                                 return queryExec;
                             }
-                            const innerResult = queryExec?.data;
+                            innerResult = queryExec?.data;
                             console.log("Table Name " + tableName)
                             tableNameWithId[tableName + 'id'] = innerResult[0]?.id;
 
@@ -428,10 +447,9 @@ export class PageService {
                                 const modalDataKey = returningPlaceholder.replace('$', '');
                                 modalData[modalDataKey] = value;
                             }
-
+                            modalData[queryObj.returningPlaceholder.replace('$', '')] = innerResult[0]?.id;
                             response.push({ tableName: queryObj.returningPlaceholder, id: innerResult[0]?.id });
                         }
-
                         response = [modalData];
                         return response;
                     } catch (error) {
@@ -550,7 +568,7 @@ export class PageService {
 
                                     if (updateMatches && updateMatches.length > 1) {
                                         substitutedQuery = substitutedQuery.toLowerCase().replace(/update (\w+)/, `update admin.${tableName}`);
-                                    }else if (deleteMatches && deleteMatches.length > 1) {
+                                    } else if (deleteMatches && deleteMatches.length > 1) {
                                         substitutedQuery = substitutedQuery.toLowerCase().replace(/delete from (\w+)/, `delete from admin.${tableName}`);
                                     }
                                     console.log('modalData : ' + JSON.stringify(modalData))
@@ -777,10 +795,10 @@ export class PageService {
 
 
                         if (query.toLowerCase().includes('order by')) {
-                            query += ` OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY`;
+                            query += ` OFFSET ${offset} LIMIT ${pageSize}`;
                         }
                         else {
-                            query += ` ORDER BY id OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY`;
+                            query += ` ORDER BY id OFFSET ${offset} LIMIT ${pageSize}`;
                         }
                         query = query.replaceAll('@search', search ? "'" + search + "'" : "''");
                         countQuery = countQuery.replaceAll('@search', search ? "'" + search + "'" : "''");
@@ -1060,7 +1078,7 @@ export class PageService {
     // saveAudioToFile(audioData: Buffer, filePath: string): void {
     //     fs.writeFileSync(filePath, audioData);
     // }
-    async sendEmail11(data: any, appId: string, request: any, action?: any, user?: any, screenBuildId?: any, actionRule?: any) {
+    async sendEmail11(req, data: any, appId: string, request: any, action?: any, user?: any, screenBuildId?: any, actionRule?: any) {
         try {
             console.log('action : ' + action)
             let { emailtype, emailName, email, value, emailto } = action;
@@ -1068,6 +1086,11 @@ export class PageService {
                 action.emailto = JSON.parse(action.emailto);
                 const result = action.emailto.map(email => data.modalData[email]);
                 emailto = result.filter(email => email);
+                let primaryId = null;
+                if (action.emailto.length > 0) {
+                    let tableName = action.emailto[0].split('.')[0];
+                    primaryId = data.modalData[`${tableName}.${tableName}id`]
+                }
                 let date = Date.now();
                 const cmd = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.emailtemplates WHERE id = '${action.emailtemplate}'`;
                 const res: any = await this.crateDbService.executeQuery(cmd);
@@ -1079,8 +1102,8 @@ export class PageService {
                             : getTemplate.emailtemplate;
                         if (action.emailbulkindividual === 'bulk') {
                             return getTemplate.templatetype === 'pdf'
-                                ? updatedHtml ? await this.emailService.sendHtmlAsPdf('orderrequest', action.emailfrom, updatedHtml, date, 'Text', null, emailto) : ''
-                                : await this.emailService.sendEmail('Subject', action.emailfrom, 'Ticket Information', updatedHtml, null, null, emailto);
+                                ? updatedHtml ? await this.emailService.sendHtmlAsPdf(getTemplate.subject, action.emailfrom, updatedHtml, date, 'Text', null, emailto) : ''
+                                : await this.emailService.sendEmail(getTemplate.subject, action.emailfrom, 'Ticket Information', updatedHtml, null, null, emailto);
                         }
                         else if (action.emailbulkindividual === 'individual') {
                             const cmd = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.actions WHERE screenbuilderid = '${action.screenbuilderid}' AND applicationid = '${appId}'`;
@@ -1102,16 +1125,87 @@ export class PageService {
                                         elementData.emailto = result.filter(email => email);;
                                         if (elementData.emailbulkindividual === 'bulk') {
                                             return elementDataGetTemplate.templatetype === 'pdf'
-                                                ? updatedHtml ? await this.emailService.sendHtmlAsPdf('orderrequest', elementData.emailfrom, updatedHtml, date, 'Text', null, elementData.emailto) : ''
-                                                : await this.emailService.sendEmail('Subject', elementData.emailfrom, 'Ticket Information', updatedHtml, null, null, elementData.emailto);
+                                                ? updatedHtml ? await this.emailService.sendHtmlAsPdf(elementDataGetTemplate.subject, elementData.emailfrom, updatedHtml, date, 'Text', null, elementData.emailto) : ''
+                                                : await this.emailService.sendEmail(elementDataGetTemplate.subject, elementData.emailfrom, 'Ticket Information', updatedHtml, null, null, elementData.emailto);
                                         } else {
                                             return await Promise.all(elementData.emailto.map(async (element) => {
                                                 return elementDataGetTemplate.templatetype === 'pdf'
-                                                    ? (updatedHtml ? await this.emailService.sendHtmlAsPdf('orderrequest', element, elementDataUpdatedHtml, date, 'Text') : '')
-                                                    : await this.emailService.sendEmail('Subject', element, 'Ticket Information', elementDataUpdatedHtml);
+                                                    ? (updatedHtml ? await this.emailService.sendHtmlAsPdf(elementDataGetTemplate.subject, element, elementDataUpdatedHtml, date, 'Text') : '')
+                                                    : await this.emailService.sendEmail(elementDataGetTemplate.subject, element, 'Ticket Information', elementDataUpdatedHtml);
                                             }));
                                         }
                                     }
+                                    return ''; // Handle other cases if needed
+                                }));
+
+                                return results.join(''); // or return results; depending on your use case
+                            }
+                        }
+                    }
+                    else if (action.emailtype === 'token') {
+                        const updatedHtml = data.modalData
+                            ? this.emailService.replacePlaceholders(getTemplate.emailtemplate, data.modalData, Date.now())
+                            : getTemplate.emailtemplate;
+                        if (action.emailbulkindividual === 'bulk') {
+                            // const token = this.tokenService.generateToken(emailto,emailto);
+                            // return getTemplate.templatetype === 'pdf'
+                            //     ? updatedHtml ? await this.emailService.sendHtmlAsPdf('Request', action.emailfrom, updatedHtml, date, 'Text', null, emailto) : ''
+                            //     : await this.emailService.sendEmail('Subject', action.emailfrom, 'Ticket Information', updatedHtml, null, null, emailto);
+                        }
+                        else if (action.emailbulkindividual === 'individual') {
+                            const cmd = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.actions WHERE screenbuilderid = '${action.screenbuilderid}' AND applicationid = '${appId}' AND type = 'email' AND elementname = '${action?.elementname}'`;
+                            const res: any = await this.crateDbService.executeQuery(cmd);
+                            let actions = res ? res.data : [];
+                            let postEmail = actions.filter((act: any) => act.type == 'email' && act.actionlink == 'post' && act?.elementname == action?.elementname);
+                            console.log('postEmail : ' + JSON.stringify(postEmail))
+                            if (postEmail.length > 0) {
+                                const results = await Promise.all(postEmail.map(async (elementData) => {
+
+                                    const cmd = `SELECT * FROM ${DB_CONFIG.CRATEDB.mode}meta.emailtemplates WHERE id = '${action.emailtemplate}'`;
+                                    const res: any = await this.crateDbService.executeQuery(cmd);
+
+                                    elementData.emailto = JSON.parse(elementData.emailto)
+                                    const result = elementData.emailto.map(email => data.modalData[email]);
+                                    elementData.emailto = result.filter(email => email);
+                                    await Promise.all(elementData.emailto.map(async (emailUserName) => {
+                                        const sanitizedUsername = emailUserName.replace(/\s/g, '');
+                                        const getuserDetail: any = await this.crateDbService.executeQuery(`SELECT  * FROM ${DB_CONFIG.CRATEDB.mode}meta.users 
+                                        WHERE LOWER((username)) = LOWER(('${sanitizedUsername}')) AND applicationId = '${appId}'`);
+                                        const token = this.tokenService.generateToken((getuserDetail.data.length > 0 ? getuserDetail.data[0].username : emailUserName), appId, (getuserDetail.data.length == 0 ? true : false), `${elementData.pagelink}/${primaryId}`);
+                                        const tokenModel = {
+                                            url: elementData.pagetype == 'detailPage' ? `${req.headers.origin}/${elementData.pagelink}/${primaryId}?token=${token}` :
+                                                `${req.headers.origin}/${elementData.pagelink}?token=${token}`,
+                                            token: token,
+                                            username: emailUserName,
+                                            applicationid: appId,
+                                            isvalid: true,
+                                            page: elementData.pagetype == 'detailPage' ? `/${elementData.pagelink}/${primaryId}` : `/${elementData.pagelink}`
+                                        }
+
+                                        const { query, values } = this.queryGenratorService.generateInsertQuery(`${DB_CONFIG.CRATEDB.mode}meta.tokenmanager`, tokenModel);
+                                        const tokenResult = await this.crateDbService.executeQuery(query);
+                                        const elementDataGetTemplate: any = res ? res.data[0] : null;
+                                        if (elementData.pagetype == 'detailPage') {
+                                            data.modalData['token'] = `${req.headers.origin}/${elementData.pagelink}/${primaryId}?token=${token}`;
+                                        } else {
+                                            data.modalData['token'] = `${req.headers.origin}/${elementData.pagelink}?token=${token}`;
+                                        }
+                                        const elementDataUpdatedHtml = data.modalData
+                                            ? this.emailService.replacePlaceholders(elementDataGetTemplate.emailtemplate, data.modalData, Date.now())
+                                            : getTemplate.data.emailtemplate;
+                                        if (elementDataGetTemplate) {
+                                            if (elementData.emailbulkindividual === 'bulk') {
+                                                elementDataGetTemplate.templatetype === 'pdf'
+                                                    ? updatedHtml ? await this.emailService.sendHtmlAsPdf(elementDataGetTemplate.subject, elementData.emailfrom, updatedHtml, date, 'Text', null, emailUserName) : ''
+                                                    : await this.emailService.sendEmail(elementDataGetTemplate.subject, elementData.emailfrom, 'Ticket Information', updatedHtml, null, null, emailUserName);
+                                            } else {
+                                                elementDataGetTemplate.templatetype === 'pdf'
+                                                    ? (updatedHtml ? await this.emailService.sendHtmlAsPdf(elementDataGetTemplate.subject, emailUserName, elementDataUpdatedHtml, date, 'Text') : '')
+                                                    : await this.emailService.sendEmail(elementDataGetTemplate.subject, emailUserName, 'Ticket Information', elementDataUpdatedHtml);
+                                            }
+                                        }
+                                    }))
+
                                     return ''; // Handle other cases if needed
                                 }));
 
@@ -1195,10 +1289,10 @@ export class PageService {
 
                                 if (ele.
                                     templatetype === 'pdf') {
-                                    return updatedHtml ? await this.emailService.sendHtmlAsPdf('orderrequest', ele.name, updatedHtml, date ? date : null, 'Text') : '';
+                                    return updatedHtml ? await this.emailService.sendHtmlAsPdf(ele.emailTemplate.subject, ele.name, updatedHtml, date ? date : null, 'Text') : '';
                                 } else if (ele.
                                     templatetype === 'text') { // Fix the condition here
-                                    return await this.emailService.sendEmail('Subject', ele.name, 'Ticket Information', updatedHtml);
+                                    return await this.emailService.sendEmail(ele.emailTemplate.subject, ele.name, 'Ticket Information', updatedHtml);
                                 }
                             } catch (error) {
                                 console.error('Error sending email:', error);

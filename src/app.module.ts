@@ -11,9 +11,11 @@ import { S3FileManagerModule } from './models/s3-file-manager/s3-file-manager.mo
 import { MailerModule } from '@nestjs-modules/mailer';
 import { EMAIL_CONFIG } from './shared/config/global-db-config';
 import { MulterModule } from '@nestjs/platform-express';
+import { UserModule } from './models/user/user.module';
+import { JwtStrategy } from './models/auth/jwt/jwt.strategy';
 
 @Module({
-  imports: [AuthModule,ApiModule,PageModule,CrudModule , EmailModule , S3FileManagerModule,
+  imports: [AuthModule,ApiModule,PageModule,CrudModule , EmailModule , S3FileManagerModule,UserModule,
     MulterModule.register({
       dest: './uploads', // Specify the directory where uploaded files will be stored.
     }),
@@ -32,6 +34,6 @@ import { MulterModule } from '@nestjs/platform-express';
       }
     }),],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService,JwtStrategy],
 })
 export class AppModule {}

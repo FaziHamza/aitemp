@@ -40,7 +40,7 @@ export const SPECTRUM_CONFIG = {
     email: 'support@gmail.com',
     webistUrl: 'https://expocitydubai.com/en/',
     ContactInformation: '+971543060723',
-    // serverPath:'https://spectrum.expocitydubai.com:9443/'
+    // serverPath:'https://expocitydubai.com :9443/'
     serverPath: 'http://localhost:4500/',
     nestImageUrl:"http://campaigns.expocitydubai.com.s3-website.me-south-1.amazonaws.com/",
   }
@@ -49,3 +49,5 @@ export const SPECTRUM_CONFIG = {
 export const SECRETS={
   secretKey :'0193c29ad58f4211bde65108419095c45eb363e05e70c66a48f40b2d4c807176'
 }
+
+export const globalCorsOrigins: any= [];
